@@ -1,0 +1,273 @@
+#!/usr/bin/env python3
+"""
+Command-line interface for cubic graph optimizer.
+
+Usage:
+    optimize_trees N [options]
+    
+Where N is the number of vertices (must be even).
+
+Examples:
+    optimize_trees 20                    # Basic optimization
+    optimize_trees 20 --method greedy    # Specify method
+    optimize_trees 20 --restarts 10      # Multiple restarts
+    optimize_trees 20 --restarts auto    # Auto restarts
+    optimize_trees 20 --parallel         # Use all CPU cores
+    optimize_trees 20 --output-dir results/  # Custom output directory
+"""
+
+import argparse
+import os
+import sys
+from pathlib import Path
+from datetime import datetime
+
+# Add the parent directory to path to allow imports when running as script
+script_dir = os.path.dirname(os.path.abspath(__file__))
+if os.path.basename(script_dir) == 'cubic_graph_optimizer':
+    # We're in the package directory, add parent to path
+    sys.path.insert(0, os.path.dirname(script_dir))
+
+import networkx as nx
+
+# Import from our package
+import cubic_graph_optimizer
+from cubic_graph_optimizer.optimization.methods import optimize_with_restarts
+from cubic_graph_optimizer.analysis.properties import analyze_graph_properties, compare_graph_structures
+from cubic_graph_optimizer.utils.io import save_graph
+from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees
+from cubic_graph_optimizer.utils.special_graphs import check_known_cages
+
+
+def parse_arguments():
+    """Parse command line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Optimize spanning trees in cubic graphs",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  optimize_trees 20                    # Basic optimization with n=20 vertices
+  optimize_trees 20 --method sa        # Use simulated annealing
+  optimize_trees 20 --restarts 10      # Try 10 random starting graphs
+  optimize_trees 20 --restarts auto    # Auto-detect when to stop
+  optimize_trees 20 --parallel         # Use multiple CPU cores
+  optimize_trees 20 --output-dir results/  # Save to custom directory
+  optimize_trees 20 --analyze          # Show detailed analysis
+        """
+    )
+    
+    parser.add_argument('N', type=int, help='Number of vertices (must be even)')
+    
+    # Optimization options
+    parser.add_argument('--method', '-m', 
+                      choices=['greedy', 'first', 'sa'], 
+                      default='greedy',
+                      help='Optimization method (default: greedy)')
+    
+    parser.add_argument('--restarts', '-r', 
+                      default='1',
+                      help='Number of restarts or "auto" (default: 1)')
+    
+    parser.add_argument('--max-iterations', '-i', 
+                      type=int, 
+                      default=None,
+                      help='Maximum iterations per optimization (default: 100 for greedy/first, 500 for sa)')
+    
+    parser.add_argument('--parallel', '-p', 
+                      action='store_true',
+                      help='Use parallel processing for multiple restarts')
+    
+    # Output options
+    parser.add_argument('--output-dir', '-o', 
+                      type=str, 
+                      default='optimized_graphs',
+                      help='Directory to save results (default: optimized_graphs/)')
+    
+    parser.add_argument('--no-save', 
+                      action='store_true',
+                      help='Do not save the optimized graph')
+    
+    # Analysis options
+    parser.add_argument('--analyze', '-a', 
+                      action='store_true',
+                      help='Show detailed analysis of the optimized graph')
+    
+    parser.add_argument('--compare', '-c', 
+                      action='store_true',
+                      help='Compare with initial random graph')
+    
+    # Other options
+    parser.add_argument('--seed', 
+                      type=int, 
+                      default=42,
+                      help='Random seed (default: 42)')
+    
+    parser.add_argument('--quiet', '-q', 
+                      action='store_true',
+                      help='Minimal output')
+    
+    parser.add_argument('--verbose', '-v', 
+                      action='store_true',
+                      help='Verbose output during optimization')
+    
+    args = parser.parse_args()
+    
+    # Validate arguments
+    if args.N % 2 != 0:
+        parser.error("N must be even (cubic graphs require even number of vertices)")
+    
+    if args.N < 4:
+        parser.error("N must be at least 4")
+    
+    # Parse restarts
+    if args.restarts.lower() == 'auto':
+        args.restarts = 'auto'
+    else:
+        try:
+            args.restarts = int(args.restarts)
+            if args.restarts < 1:
+                parser.error("--restarts must be positive or 'auto'")
+        except ValueError:
+            parser.error("--restarts must be an integer or 'auto'")
+    
+    # Set default max iterations based on method
+    if args.max_iterations is None:
+        args.max_iterations = 500 if args.method == 'sa' else 100
+    
+    return args
+
+
+def main():
+    """Main function."""
+    args = parse_arguments()
+    
+    # Setup
+    k = args.N // 2
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    
+    if not args.quiet:
+        print(f"{'='*70}")
+        print(f"Cubic Graph Optimizer")
+        print(f"{'='*70}")
+        print(f"Optimizing cubic graph with N={args.N} vertices (k={k})")
+        print(f"Method: {args.method}")
+        print(f"Restarts: {args.restarts}")
+        if args.parallel and args.restarts != 1:
+            print(f"Parallel: Yes")
+        print(f"{'='*70}\n")
+    
+    # For comparison, generate initial random graph with same seed
+    if args.compare:
+        G_initial = nx.random_regular_graph(3, args.N, seed=args.seed)
+        T_initial = count_spanning_trees(G_initial)
+    
+    # Run optimization
+    if not args.quiet:
+        print("Running optimization...")
+    
+    G_opt, T_opt, num_trials = optimize_with_restarts(
+        n=args.N,
+        method=args.method,
+        restarts=args.restarts,
+        parallel=args.parallel,
+        base_seed=args.seed,
+        verbose=args.verbose,
+        max_iterations=args.max_iterations
+    )
+    
+    # Results summary
+    print(f"\n{'='*70}")
+    print(f"OPTIMIZATION COMPLETE")
+    print(f"{'='*70}")
+    print(f"Trials run: {num_trials}")
+    print(f"Best ln(spanning trees): {T_opt:.6f}")
+    print(f"Approx. spanning trees: {T_opt:.2e}")
+    
+    if args.compare:
+        improvement = T_opt - T_initial
+        print(f"\nComparison with random graph:")
+        print(f"  Initial: {T_initial:.6f}")
+        print(f"  Final:   {T_opt:.6f}")
+        print(f"  Improvement: {improvement:.6f} ({100*improvement/T_initial:.2f}%)")
+    
+    # Check if it's a known special graph
+    is_known, cage_name = check_known_cages(G_opt, k)
+    if is_known:
+        print(f"\nSpecial graph detected: {cage_name}")
+    
+    # Save the graph
+    if not args.no_save:
+        # Create output directory
+        output_dir = Path(args.output_dir)
+        output_dir.mkdir(exist_ok=True)
+        
+        # Generate filename
+        filename = f"cubic_n{args.N}_{args.method}_{timestamp}.pkl"
+        filepath = output_dir / filename
+        
+        # Save with metadata
+        G_opt.graph['optimization_method'] = args.method
+        G_opt.graph['optimization_trials'] = num_trials
+        G_opt.graph['timestamp'] = timestamp
+        if args.compare:
+            G_opt.graph['initial_T'] = T_initial
+            G_opt.graph['improvement'] = T_opt - T_initial
+        
+        save_graph(G_opt, str(filepath), T_value=T_opt, 
+                  compute_all_properties=(args.N <= 60))  # Lightweight for large graphs
+        
+        print(f"\nGraph saved to: {filepath}")
+        
+        # Also save a summary file
+        summary_file = output_dir / f"summary_n{args.N}_{timestamp}.txt"
+        with open(summary_file, 'w') as f:
+            f.write(f"Cubic Graph Optimization Summary\n")
+            f.write(f"================================\n\n")
+            f.write(f"Date: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+            f.write(f"N: {args.N}\n")
+            f.write(f"k: {k}\n")
+            f.write(f"Method: {args.method}\n")
+            f.write(f"Restarts: {args.restarts}\n")
+            f.write(f"Trials run: {num_trials}\n")
+            f.write(f"Random seed: {args.seed}\n\n")
+            f.write(f"Results:\n")
+            f.write(f"--------\n")
+            f.write(f"ln(spanning trees): {T_opt:.6f}\n")
+            f.write(f"Approx. spanning trees: {T_opt:.2e}\n")
+            if args.compare:
+                f.write(f"\nInitial ln(spanning trees): {T_initial:.6f}\n")
+                f.write(f"Improvement: {T_opt - T_initial:.6f}\n")
+            if is_known:
+                f.write(f"\nSpecial graph: {cage_name}\n")
+            f.write(f"\nGraph file: {filename}\n")
+    
+    # Detailed analysis if requested
+    if args.analyze:
+        print(f"\n{'='*70}")
+        print("DETAILED ANALYSIS")
+        print(f"{'='*70}")
+        
+        lightweight = (args.N >= 60)
+        analyze_graph_properties(
+            G_opt, 
+            "Optimized Graph",
+            compute_girth=not lightweight,
+            compute_cycles=not lightweight,
+            compute_automorphisms=True
+        )
+        
+        if args.compare:
+            compare_graph_structures(
+                G_initial, 
+                G_opt,
+                compute_expensive=not lightweight,
+                compute_automorphisms=True
+            )
+    
+    print(f"\n{'='*70}")
+    if not args.quiet:
+        print("Done!")
+
+
+if __name__ == "__main__":
+    main()

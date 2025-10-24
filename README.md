@@ -142,7 +142,64 @@ G_loaded = load_graph("optimal_cubic_k10.pkl")
 
 ## Command Line Usage
 
-Run the main script to see examples:
+### Quick Start
+
+The package includes a convenient command-line tool:
+
+```bash
+# Basic usage - optimize a cubic graph with 20 vertices
+./optimize_trees 20
+
+# Use simulated annealing
+./optimize_trees 20 --method sa
+
+# Run multiple restarts in parallel
+./optimize_trees 20 --restarts 10 --parallel
+
+# Auto-detect when to stop trying new random starts
+./optimize_trees 20 --restarts auto
+
+# Compare with random graph and show detailed analysis
+./optimize_trees 20 --compare --analyze
+
+# Save to custom directory
+./optimize_trees 20 --output-dir my_results/
+```
+
+### Command Line Options
+
+```
+positional arguments:
+  N                     Number of vertices (must be even)
+
+options:
+  -h, --help            Show help message
+  --method {greedy,first,sa}, -m
+                        Optimization method (default: greedy)
+  --restarts RESTARTS, -r
+                        Number of restarts or "auto" (default: 1)
+  --max-iterations MAX_ITERATIONS, -i
+                        Maximum iterations per optimization
+  --parallel, -p        Use parallel processing
+  --output-dir OUTPUT_DIR, -o
+                        Directory to save results (default: optimized_graphs/)
+  --no-save             Do not save the optimized graph
+  --analyze, -a         Show detailed analysis
+  --compare, -c         Compare with initial random graph
+  --seed SEED           Random seed (default: 42)
+  --quiet, -q           Minimal output
+  --verbose, -v         Verbose optimization output
+```
+
+### Output Files
+
+The tool saves optimized graphs to the `optimized_graphs/` directory with:
+- Graph file: `cubic_n{N}_{method}_{timestamp}.pkl`
+- Summary file: `summary_n{N}_{timestamp}.txt`
+
+### Examples Script
+
+You can also run the examples script directly:
 
 ```bash
 python main.py

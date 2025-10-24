@@ -1,0 +1,7 @@
+# Core dependencies
+networkx>=2.8.0
+numpy>=1.21.0
+
+# Optional dependencies for advanced features
+pynauty>=2.8.0  # For automorphism group computation (optional)
+matplotlib>=3.5.0  # For plotting eigenvalue distributions (optional)

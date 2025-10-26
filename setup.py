@@ -30,11 +30,13 @@ setup(
     install_requires=[
         "networkx>=2.8.0",
         "numpy>=1.21.0",
+        "scipy>=1.7.0",
     ],
     extras_require={
         "automorphisms": ["pynauty>=2.8.0"],
         "plotting": ["matplotlib>=3.5.0"],
-        "all": ["pynauty>=2.8.0", "matplotlib>=3.5.0"],
+        "ui": ["gradio>=5.0.0", "matplotlib>=3.5.0"],
+        "all": ["pynauty>=2.8.0", "matplotlib>=3.5.0", "gradio>=5.0.0"],
     },
     entry_points={
         "console_scripts": [

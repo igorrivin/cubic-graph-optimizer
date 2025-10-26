@@ -1,0 +1,143 @@
+#!/usr/bin/env python3
+"""
+Test the N=126 theoretical boundary for λ₂ = √6.
+
+According to theory, N=126 is the largest N where λ₂ = √6 ≈ 2.449 is achievable.
+"""
+
+import sys
+import networkx as nx
+import numpy as np
+
+sys.path.insert(0, '/home/igor/devel/cubic-graph-optimizer')
+
+from cubic_graph_optimizer.optimization.methods import gradient_ascent_first_improvement
+from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees, get_second_eigenvalue
+
+def test_boundary_neighborhood(n_values, max_iterations=200, restarts=5):
+    """
+    Test N values around 126 to see the boundary behavior.
+    """
+    sqrt6 = np.sqrt(6)
+
+    print("=" * 90)
+    print(f"Testing N=126 Theoretical Boundary (λ₂ = √6 ≈ {sqrt6:.6f})")
+    print("=" * 90)
+    print(f"{'N':<6} {'Best λ₂':<14} {'Distance to √6':<18} {'ln(trees)':<14} {'Status':<20}")
+    print("-" * 90)
+
+    results = []
+
+    for n in n_values:
+        print(f"{n:<6} ", end="", flush=True)
+
+        best_lambda2 = float('inf')
+        best_ln_trees = 0
+
+        for restart in range(restarts):
+            # Random start
+            G = nx.random_regular_graph(3, n, seed=42 + restart*1000)
+
+            # Optimize for expansion
+            G_opt, _ = gradient_ascent_first_improvement(
+                G,
+                max_iterations=max_iterations,
+                verbose=False,
+                objective='expansion'
+            )
+
+            # Measure
+            lambda2 = get_second_eigenvalue(G_opt)
+            ln_trees = count_spanning_trees(G_opt)
+
+            if lambda2 < best_lambda2:
+                best_lambda2 = lambda2
+                best_ln_trees = ln_trees
+
+        # Check distance to sqrt(6)
+        distance = best_lambda2 - sqrt6
+
+        # Determine status
+        if abs(distance) < 0.001:
+            status = "✓ ACHIEVED √6!"
+        elif distance < 0:
+            status = "Below √6 (better)"
+        elif n < 126:
+            status = "Should reach √6"
+        elif n == 126:
+            status = "Boundary case"
+        else:
+            status = "Should be > √6"
+
+        print(f"{best_lambda2:<14.6f} {distance:+17.6f} {best_ln_trees:<14.6f} {status:<20}")
+
+        results.append({
+            'n': n,
+            'best_lambda2': best_lambda2,
+            'distance_to_sqrt6': distance,
+            'ln_trees': best_ln_trees
+        })
+
+    print("=" * 90)
+
+    # Summary
+    print(f"\nTheoretical bound: λ₂ = √6 = {sqrt6:.6f}")
+    print(f"\nResults summary:")
+
+    achieved_sqrt6 = [r for r in results if abs(r['distance_to_sqrt6']) < 0.001]
+    below_sqrt6 = [r for r in results if r['distance_to_sqrt6'] < -0.001]
+    above_sqrt6 = [r for r in results if r['distance_to_sqrt6'] > 0.001]
+
+    print(f"  Achieved √6 (within 0.001): {len(achieved_sqrt6)} graphs")
+    print(f"  Below √6: {len(below_sqrt6)} graphs")
+    print(f"  Above √6: {len(above_sqrt6)} graphs")
+
+    if achieved_sqrt6:
+        print(f"\n  N values achieving √6: {[r['n'] for r in achieved_sqrt6]}")
+
+    # Check if N=126 is special
+    n126_result = [r for r in results if r['n'] == 126]
+    if n126_result:
+        r = n126_result[0]
+        print(f"\n  N=126 result: λ₂ = {r['best_lambda2']:.6f}")
+        if abs(r['distance_to_sqrt6']) < 0.01:
+            print(f"  ⭐ SUCCESS! Found λ₂ ≈ √6 at the theoretical boundary!")
+        else:
+            print(f"  Still {abs(r['distance_to_sqrt6']):.6f} away from √6")
+            print(f"  May need more iterations or restarts")
+
+    return results
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Test N=126 boundary')
+    parser.add_argument('--quick', action='store_true',
+                       help='Quick test with fewer iterations')
+    parser.add_argument('--full', action='store_true',
+                       help='Full test around N=126')
+
+    args = parser.parse_args()
+
+    if args.quick:
+        # Quick test: just N=126 and neighbors
+        n_values = [120, 126, 132]
+        max_iterations = 150
+        restarts = 3
+        print("Running QUICK test (3 restarts, 150 iterations)...")
+    elif args.full:
+        # Full test: range around 126
+        n_values = [100, 110, 120, 126, 130, 140, 150]
+        max_iterations = 300
+        restarts = 10
+        print("Running FULL test (10 restarts, 300 iterations)...")
+    else:
+        # Default: focus on 126
+        n_values = [126]
+        max_iterations = 200
+        restarts = 5
+        print("Running DEFAULT test on N=126 (5 restarts, 200 iterations)...")
+
+    print()
+    results = test_boundary_neighborhood(n_values, max_iterations, restarts)

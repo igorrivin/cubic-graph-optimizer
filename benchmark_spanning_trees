@@ -1,0 +1,258 @@
+#!/usr/bin/env python3
+"""
+Systematic benchmark to establish best-known values for maximum spanning trees
+in cubic graphs across a range of N values.
+
+Usage:
+    benchmark_spanning_trees --start 4 --end 50 --step 2
+    benchmark_spanning_trees --values 10,14,20,30,40
+    benchmark_spanning_trees --quick  # N=4,6,8,...,30 with fewer restarts
+"""
+
+import argparse
+import json
+import networkx as nx
+import numpy as np
+from datetime import datetime
+from pathlib import Path
+
+from cubic_graph_optimizer.optimization.methods import optimize_with_restarts
+from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees
+from cubic_graph_optimizer.utils.io import save_graph
+
+
+def graph_to_adjacency_list(G):
+    """Convert graph to adjacency list format."""
+    n = G.number_of_nodes()
+    adj_list = [[] for _ in range(n)]
+    for node in range(n):
+        adj_list[node] = sorted(list(G.neighbors(node)))
+    return adj_list
+
+
+def run_benchmark(n_values, methods, restarts, max_iterations, base_seed, output_dir):
+    """Run systematic benchmarks."""
+
+    results = []
+
+    print("="*80)
+    print("SYSTEMATIC SPANNING TREE BENCHMARK")
+    print("="*80)
+    print(f"N values: {n_values}")
+    print(f"Methods: {methods}")
+    print(f"Restarts per method: {restarts}")
+    print(f"Max iterations: {max_iterations}")
+    print(f"Base seed: {base_seed}")
+    print(f"Output directory: {output_dir}")
+    print("="*80)
+    print()
+
+    for n in n_values:
+        print(f"\n{'='*80}")
+        print(f"N = {n}")
+        print(f"{'='*80}")
+
+        n_result = {
+            'n': n,
+            'k': n // 2,
+            'methods': {}
+        }
+
+        best_T = float('-inf')
+        best_method = None
+        best_G = None
+
+        for method in methods:
+            print(f"\n--- Method: {method} ---")
+
+            G_opt, T_opt, num_trials = optimize_with_restarts(
+                n=n,
+                method=method,
+                restarts=restarts,
+                parallel=(restarts > 1),
+                base_seed=base_seed,
+                verbose=True,
+                max_iterations=max_iterations
+            )
+
+            trees = np.exp(T_opt)
+
+            n_result['methods'][method] = {
+                'ln_trees': float(T_opt),
+                'trees_approx': float(trees),
+                'trials': num_trials
+            }
+
+            print(f"Result: ln(trees) = {T_opt:.6f}, trees ≈ {trees:.2e}")
+
+            if T_opt > best_T:
+                best_T = T_opt
+                best_method = method
+                best_G = G_opt
+
+        # Record best result
+        n_result['best_method'] = best_method
+        n_result['best_ln_trees'] = float(best_T)
+        n_result['best_trees_approx'] = float(np.exp(best_T))
+
+        # Save best graph
+        graph_filename = output_dir / f"best_n{n}_{best_method}.pkl"
+        save_graph(best_G, str(graph_filename), T_value=best_T,
+                  compute_all_properties=(n <= 30))
+        n_result['graph_file'] = str(graph_filename)
+
+        # Add adjacency list for easy sharing
+        n_result['adjacency_list'] = graph_to_adjacency_list(best_G)
+
+        results.append(n_result)
+
+        print(f"\n{'='*80}")
+        print(f"BEST for N={n}: {best_method} with ln(trees) = {best_T:.6f}")
+        print(f"Graph saved to: {graph_filename}")
+        print(f"{'='*80}")
+
+    return results
+
+
+def print_summary_table(results):
+    """Print a summary table of all results."""
+    print("\n" + "="*100)
+    print("SUMMARY: BEST-KNOWN VALUES FOR MAXIMUM SPANNING TREES IN CUBIC GRAPHS")
+    print("="*100)
+    print(f"{'N':>4} {'k':>4} {'Best Method':>15} {'ln(trees)':>14} {'Trees (approx)':>25} {'Trials':>8}")
+    print("-"*100)
+
+    for r in results:
+        n = r['n']
+        k = r['k']
+        method = r['best_method']
+        ln_t = r['best_ln_trees']
+        trees = r['best_trees_approx']
+        trials = r['methods'][method]['trials']
+
+        print(f"{n:4d} {k:4d} {method:>15} {ln_t:14.6f} {trees:25.6e} {trials:8d}")
+
+    print("="*100)
+    print()
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Systematic benchmark for maximum spanning trees in cubic graphs',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Full benchmark N=4 to N=50
+  benchmark_spanning_trees --start 4 --end 50 --step 2 --restarts 10
+
+  # Specific values
+  benchmark_spanning_trees --values 10,14,20,30,40 --restarts 20
+
+  # Quick test
+  benchmark_spanning_trees --quick
+        """
+    )
+
+    group = parser.add_mutually_exclusive_group(required=True)
+    group.add_argument('--start', type=int,
+                      help='Start value for N (use with --end)')
+    group.add_argument('--values', type=str,
+                      help='Comma-separated list of N values (e.g., "10,20,30")')
+    group.add_argument('--quick', action='store_true',
+                      help='Quick benchmark: N=4,6,...,30 with 3 restarts')
+
+    parser.add_argument('--end', type=int,
+                       help='End value for N (inclusive)')
+    parser.add_argument('--step', type=int, default=2,
+                       help='Step size for N range (default: 2)')
+
+    parser.add_argument('--methods', type=str,
+                       default='first,first-multifold,sa-multifold',
+                       help='Comma-separated methods to test (default: first,first-multifold,sa-multifold)')
+    parser.add_argument('--restarts', type=int, default=10,
+                       help='Number of restarts per method (default: 10)')
+    parser.add_argument('--max-iterations', type=int, default=200,
+                       help='Max iterations per run (default: 200)')
+    parser.add_argument('--seed', type=int, default=42,
+                       help='Base random seed (default: 42)')
+    parser.add_argument('--output-dir', type=str, default='benchmark_results',
+                       help='Output directory (default: benchmark_results/)')
+
+    args = parser.parse_args()
+
+    # Determine N values to test
+    if args.quick:
+        n_values = list(range(4, 32, 2))
+        restarts = 3
+        max_iterations = 100
+        methods = ['first', 'first-multifold']
+    elif args.values:
+        n_values = [int(x.strip()) for x in args.values.split(',')]
+        restarts = args.restarts
+        max_iterations = args.max_iterations
+        methods = args.methods.split(',')
+    else:
+        if args.end is None:
+            parser.error("--end is required when using --start")
+        n_values = list(range(args.start, args.end + 1, args.step))
+        restarts = args.restarts
+        max_iterations = args.max_iterations
+        methods = args.methods.split(',')
+
+    # Validate N values
+    for n in n_values:
+        if n % 2 != 0:
+            parser.error(f"N={n} is odd (must be even for cubic graphs)")
+        if n < 4:
+            parser.error(f"N={n} is too small (minimum is 4)")
+
+    # Create output directory
+    output_dir = Path(args.output_dir)
+    output_dir.mkdir(exist_ok=True)
+
+    # Run benchmark
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    results = run_benchmark(n_values, methods, restarts, max_iterations,
+                           args.seed, output_dir)
+
+    # Print summary
+    print_summary_table(results)
+
+    # Save results
+    results_file = output_dir / f"benchmark_results_{timestamp}.json"
+    with open(results_file, 'w') as f:
+        json.dump({
+            'timestamp': timestamp,
+            'parameters': {
+                'n_values': n_values,
+                'methods': methods,
+                'restarts': restarts,
+                'max_iterations': max_iterations,
+                'base_seed': args.seed
+            },
+            'results': results
+        }, f, indent=2)
+
+    print(f"Full results saved to: {results_file}")
+
+    # Create a simple table file
+    table_file = output_dir / f"best_known_values_{timestamp}.txt"
+    with open(table_file, 'w') as f:
+        f.write("Best-Known Values for Maximum Spanning Trees in Cubic Graphs\n")
+        f.write("="*100 + "\n")
+        f.write(f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n")
+        f.write(f"Methods tested: {', '.join(methods)}\n")
+        f.write(f"Restarts per method: {restarts}\n")
+        f.write("="*100 + "\n\n")
+        f.write(f"{'N':>4} {'k':>4} {'ln(trees)':>14} {'Trees (approx)':>25} {'Method':>15}\n")
+        f.write("-"*100 + "\n")
+
+        for r in results:
+            f.write(f"{r['n']:4d} {r['k']:4d} {r['best_ln_trees']:14.6f} "
+                   f"{r['best_trees_approx']:25.6e} {r['best_method']:>15}\n")
+
+    print(f"Summary table saved to: {table_file}")
+
+
+if __name__ == "__main__":
+    main()

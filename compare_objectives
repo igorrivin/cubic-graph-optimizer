@@ -1,0 +1,105 @@
+#!/usr/bin/env python3
+"""
+Compare spanning tree optimization vs expansion optimization across different graph sizes.
+"""
+
+import sys
+import networkx as nx
+import numpy as np
+
+# Add package to path
+sys.path.insert(0, '/home/igor/devel/cubic-graph-optimizer')
+
+from cubic_graph_optimizer.optimization.methods import gradient_ascent_first_improvement
+from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees, get_second_eigenvalue
+
+def compare_objectives(n_values, max_iterations=100, seed_base=42):
+    """
+    Compare the two objectives across multiple graph sizes.
+
+    Args:
+        n_values: List of N values to test
+        max_iterations: Max iterations for optimization
+        seed_base: Base seed for reproducibility
+    """
+    print("Comparison: Spanning Trees vs Expansion Optimization")
+    print("=" * 90)
+    print(f"{'N':<6} {'Trees-opt':<14} {'Trees-opt':<12} {'Exp-opt':<14} {'Exp-opt':<12} {'Δln(T)':<12} {'Δλ₂':<12}")
+    print(f"{'':>6} {'ln(trees)':>14} {'λ₂':>12} {'ln(trees)':>14} {'λ₂':>12} {'%':>12} {'%':>12}")
+    print("-" * 90)
+
+    results = []
+
+    for n in n_values:
+        # Generate random starting graphs
+        G_trees = nx.random_regular_graph(3, n, seed=seed_base + n)
+        G_expansion = nx.random_regular_graph(3, n, seed=seed_base + n + 1000)
+
+        # Optimize for spanning trees
+        G_trees_opt, _ = gradient_ascent_first_improvement(
+            G_trees.copy(),
+            max_iterations=max_iterations,
+            verbose=False,
+            objective='spanning_trees'
+        )
+
+        # Optimize for expansion
+        G_expansion_opt, _ = gradient_ascent_first_improvement(
+            G_expansion.copy(),
+            max_iterations=max_iterations,
+            verbose=False,
+            objective='expansion'
+        )
+
+        # Measure both objectives on both graphs
+        trees_opt_ln_trees = count_spanning_trees(G_trees_opt)
+        trees_opt_lambda2 = get_second_eigenvalue(G_trees_opt)
+
+        expansion_opt_ln_trees = count_spanning_trees(G_expansion_opt)
+        expansion_opt_lambda2 = get_second_eigenvalue(G_expansion_opt)
+
+        # Calculate relative differences
+        delta_ln_trees_pct = (trees_opt_ln_trees - expansion_opt_ln_trees) / expansion_opt_ln_trees * 100
+        delta_lambda2_pct = (expansion_opt_lambda2 - trees_opt_lambda2) / trees_opt_lambda2 * 100
+
+        print(f"{n:<6} {trees_opt_ln_trees:>14.6f} {trees_opt_lambda2:>12.6f} "
+              f"{expansion_opt_ln_trees:>14.6f} {expansion_opt_lambda2:>12.6f} "
+              f"{delta_ln_trees_pct:>+11.2f}% {delta_lambda2_pct:>+11.2f}%")
+
+        results.append({
+            'n': n,
+            'trees_opt_ln_trees': trees_opt_ln_trees,
+            'trees_opt_lambda2': trees_opt_lambda2,
+            'expansion_opt_ln_trees': expansion_opt_ln_trees,
+            'expansion_opt_lambda2': expansion_opt_lambda2,
+            'delta_ln_trees_pct': delta_ln_trees_pct,
+            'delta_lambda2_pct': delta_lambda2_pct
+        })
+
+    print("=" * 90)
+
+    # Summary statistics
+    avg_trees_advantage = np.mean([r['delta_ln_trees_pct'] for r in results])
+    avg_expansion_advantage = np.mean([r['delta_lambda2_pct'] for r in results])
+
+    print(f"\nAverage advantages:")
+    print(f"  Trees optimization has {avg_trees_advantage:+.2f}% more spanning trees")
+    print(f"  Expansion optimization has {avg_expansion_advantage:+.2f}% better λ₂")
+
+    # Check if there's significant trade-off
+    ramanujan_bound = 2 * np.sqrt(2)
+    trees_opt_ramanujan = sum(1 for r in results if r['trees_opt_lambda2'] <= ramanujan_bound)
+    expansion_opt_ramanujan = sum(1 for r in results if r['expansion_opt_lambda2'] <= ramanujan_bound)
+
+    print(f"\nRamanujan graphs (λ₂ ≤ {ramanujan_bound:.4f}):")
+    print(f"  Trees-optimized: {trees_opt_ramanujan}/{len(results)} ({100*trees_opt_ramanujan/len(results):.1f}%)")
+    print(f"  Expansion-optimized: {expansion_opt_ramanujan}/{len(results)} ({100*expansion_opt_ramanujan/len(results):.1f}%)")
+
+    print("\n" + "=" * 90)
+
+    return results
+
+if __name__ == "__main__":
+    # Test across a range of sizes
+    n_values = [10, 14, 20, 26, 30, 40]
+    compare_objectives(n_values, max_iterations=100)

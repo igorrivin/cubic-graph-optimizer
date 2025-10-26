@@ -1,0 +1,158 @@
+#!/usr/bin/env python3
+"""
+Test alternating optimization between spanning trees and expansion.
+"""
+
+import sys
+import networkx as nx
+import matplotlib.pyplot as plt
+
+sys.path.insert(0, '/home/igor/devel/cubic-graph-optimizer')
+
+from cubic_graph_optimizer.optimization.alternating import alternating_optimization
+
+def test_alternating(n=20, max_cycles=10):
+    """
+    Test alternating optimization and visualize the trajectory.
+
+    Args:
+        n: Number of vertices
+        max_cycles: Maximum cycles to run
+    """
+    print(f"Testing alternating optimization on N={n}")
+
+    # Start with a random graph
+    G = nx.random_regular_graph(3, n, seed=42)
+
+    # Run alternating optimization
+    result = alternating_optimization(
+        G,
+        objectives=['spanning_trees', 'expansion'],
+        max_cycles=max_cycles,
+        max_iterations_per_phase=100,
+        verbose=True
+    )
+
+    # Visualize trajectory
+    print("\n" + "="*70)
+    print("Visualizing trajectory...")
+    print("="*70)
+
+    trajectory = result['trajectory']
+
+    # Extract data for plotting
+    ln_trees_vals = [state['ln_trees'] for state in trajectory]
+    lambda2_vals = [state['lambda2'] for state in trajectory]
+    phases = [state['phase'] for state in trajectory]
+
+    # Create figure with two subplots
+    fig, (ax1, ax2, ax3) = plt.subplots(1, 3, figsize=(18, 5))
+
+    # Plot 1: Both objectives over trajectory
+    ax1.plot(ln_trees_vals, 'b-o', label='ln(trees)', markersize=4)
+    ax1.set_xlabel('Trajectory Step')
+    ax1.set_ylabel('ln(spanning trees)', color='b')
+    ax1.tick_params(axis='y', labelcolor='b')
+    ax1.grid(True, alpha=0.3)
+
+    ax1_twin = ax1.twinx()
+    ax1_twin.plot(lambda2_vals, 'r-s', label='λ₂', markersize=4)
+    ax1_twin.set_ylabel('λ₂ (second eigenvalue)', color='r')
+    ax1_twin.tick_params(axis='y', labelcolor='r')
+
+    ax1.set_title(f'Alternating Optimization Trajectory (N={n})')
+
+    # Mark phase transitions
+    for i, phase in enumerate(phases):
+        if phase == 'spanning_trees':
+            ax1.axvline(i, color='blue', alpha=0.1, linewidth=1)
+        elif phase == 'expansion':
+            ax1.axvline(i, color='red', alpha=0.1, linewidth=1)
+
+    # Plot 2: 2D trajectory in objective space
+    ax2.plot(ln_trees_vals, lambda2_vals, 'k-o', markersize=6, alpha=0.6)
+    ax2.plot(ln_trees_vals[0], lambda2_vals[0], 'go', markersize=12, label='Start')
+    ax2.plot(ln_trees_vals[-1], lambda2_vals[-1], 'ro', markersize=12, label='End')
+
+    # Color code by phase
+    for i in range(len(trajectory) - 1):
+        if phases[i] == 'spanning_trees':
+            color = 'blue'
+        elif phases[i] == 'expansion':
+            color = 'red'
+        else:
+            color = 'gray'
+        ax2.plot(ln_trees_vals[i:i+2], lambda2_vals[i:i+2], color=color, alpha=0.5, linewidth=2)
+
+    ax2.set_xlabel('ln(spanning trees)')
+    ax2.set_ylabel('λ₂')
+    ax2.set_title('Trajectory in Objective Space')
+    ax2.grid(True, alpha=0.3)
+    ax2.legend()
+
+    # Add annotations for cycle number at key points
+    for i in range(0, len(trajectory), len(trajectory)//5 + 1):
+        cycle = trajectory[i]['cycle']
+        ax2.annotate(f'C{cycle}', (ln_trees_vals[i], lambda2_vals[i]),
+                    xytext=(5, 5), textcoords='offset points', fontsize=8, alpha=0.7)
+
+    # Plot 3: Per-cycle improvements
+    cycles = []
+    cycle_trees = []
+    cycle_lambda2 = []
+
+    for i, state in enumerate(trajectory):
+        if state['phase'] == 'initial' or (i < len(trajectory) - 1 and
+            trajectory[i+1]['cycle'] != state['cycle']):
+            # End of cycle
+            cycles.append(state['cycle'])
+            cycle_trees.append(state['ln_trees'])
+            cycle_lambda2.append(state['lambda2'])
+
+    ax3.plot(cycles, cycle_trees, 'b-o', label='ln(trees)')
+    ax3.set_xlabel('Cycle Number')
+    ax3.set_ylabel('ln(spanning trees)', color='b')
+    ax3.tick_params(axis='y', labelcolor='b')
+    ax3.grid(True, alpha=0.3)
+
+    ax3_twin = ax3.twinx()
+    ax3_twin.plot(cycles, cycle_lambda2, 'r-s', label='λ₂')
+    ax3_twin.set_ylabel('λ₂', color='r')
+    ax3_twin.tick_params(axis='y', labelcolor='r')
+
+    ax3.set_title('Per-Cycle Objectives')
+
+    plt.tight_layout()
+    plt.savefig('alternating_optimization_trajectory.png', dpi=150, bbox_inches='tight')
+    print("Saved trajectory plot to: alternating_optimization_trajectory.png")
+
+    # Print detailed trajectory
+    print("\nDetailed Trajectory:")
+    print("-" * 70)
+    print(f"{'Step':<6} {'Cycle':<6} {'Phase':<20} {'ln(trees)':<14} {'λ₂':<12}")
+    print("-" * 70)
+    for i, state in enumerate(trajectory):
+        print(f"{i:<6} {state['cycle']:<6} {state['phase']:<20} "
+              f"{state['ln_trees']:<14.6f} {state['lambda2']:<12.6f}")
+
+    return result
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Test alternating optimization')
+    parser.add_argument('--n', type=int, default=20, help='Number of vertices (default: 20)')
+    parser.add_argument('--max-cycles', type=int, default=10, help='Max cycles (default: 10)')
+    args = parser.parse_args()
+
+    result = test_alternating(n=args.n, max_cycles=args.max_cycles)
+
+    print("\n" + "="*70)
+    if result['converged']:
+        print("✓ Algorithm CONVERGED to a fixed point!")
+    elif result['cycled']:
+        print(f"⟳ Algorithm entered a CYCLE (returned to cycle {result['cycle_start']})")
+    else:
+        print(f"⊗ Algorithm stopped after {result['num_cycles']} cycles (max reached)")
+    print("="*70)

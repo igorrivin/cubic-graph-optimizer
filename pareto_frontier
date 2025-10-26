@@ -1,0 +1,253 @@
+#!/usr/bin/env python3
+"""
+Explore the Pareto frontier between spanning trees and expansion objectives.
+
+The Pareto frontier consists of all graphs where you cannot improve one
+objective without making the other worse.
+"""
+
+import sys
+import networkx as nx
+import numpy as np
+import matplotlib.pyplot as plt
+from collections import defaultdict
+
+sys.path.insert(0, '/home/igor/devel/cubic-graph-optimizer')
+
+from cubic_graph_optimizer.optimization.methods import (
+    gradient_ascent_first_improvement,
+    simulated_annealing
+)
+from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees, get_second_eigenvalue
+from cubic_graph_optimizer.core.graph_operations import get_valid_whitehead_flips, apply_whitehead_flip
+import random
+
+
+def weighted_objective(G, alpha):
+    """
+    Weighted combination: alpha * ln(trees) - (1-alpha) * lambda2
+
+    alpha=1.0: only trees matter
+    alpha=0.0: only expansion matters
+    alpha=0.5: equal weight
+
+    Returns value to MAXIMIZE.
+    """
+    ln_trees = count_spanning_trees(G)
+    lambda2 = get_second_eigenvalue(G)
+
+    # Normalize roughly: ln(trees) ~ 15-40 for N=20-50, lambda2 ~ 1.5-2.5
+    # Scale lambda2 by ~10 to make comparable
+    return alpha * ln_trees - (1 - alpha) * lambda2 * 10
+
+
+def optimize_weighted(G, alpha, max_iterations=100, verbose=False):
+    """
+    Optimize the weighted objective using gradient ascent.
+    """
+    current_value = weighted_objective(G, alpha)
+
+    for iteration in range(max_iterations):
+        valid_flips = get_valid_whitehead_flips(G)
+
+        if not valid_flips:
+            break
+
+        random.shuffle(valid_flips)
+
+        improved = False
+        for edge1, edge2, flip_type in valid_flips:
+            G_temp = G.copy()
+            apply_whitehead_flip(G_temp, edge1, edge2, flip_type)
+
+            new_value = weighted_objective(G_temp, alpha)
+
+            if new_value > current_value:
+                apply_whitehead_flip(G, edge1, edge2, flip_type)
+                current_value = new_value
+                improved = True
+                break
+
+        if not improved:
+            break
+
+    return G, current_value
+
+
+def explore_pareto_frontier(n, num_alphas=11, restarts_per_alpha=5, max_iterations=100):
+    """
+    Explore the Pareto frontier by optimizing weighted objectives.
+
+    Args:
+        n: Graph size
+        num_alphas: Number of alpha values to try (uniformly spaced)
+        restarts_per_alpha: Random restarts for each alpha
+        max_iterations: Max iterations per optimization
+    """
+    print("=" * 90)
+    print(f"Pareto Frontier Exploration for N={n}")
+    print("=" * 90)
+    print(f"Alpha range: [0.0, 1.0] with {num_alphas} points")
+    print(f"Restarts per alpha: {restarts_per_alpha}")
+    print("=" * 90)
+
+    alphas = np.linspace(0, 1, num_alphas)
+    pareto_points = []
+
+    for alpha in alphas:
+        print(f"\nAlpha = {alpha:.2f} ", end="")
+        if alpha == 0.0:
+            print("(pure expansion)")
+        elif alpha == 1.0:
+            print("(pure trees)")
+        else:
+            print(f"(trees:{alpha:.0%}, expansion:{1-alpha:.0%})")
+
+        best_G = None
+        best_ln_trees = -np.inf
+        best_lambda2 = np.inf
+
+        for restart in range(restarts_per_alpha):
+            # Random start
+            G = nx.random_regular_graph(3, n, seed=42 + int(alpha*100) + restart*1000)
+
+            # Optimize weighted objective
+            G_opt, _ = optimize_weighted(G, alpha, max_iterations=max_iterations, verbose=False)
+
+            # Measure both objectives
+            ln_trees = count_spanning_trees(G_opt)
+            lambda2 = get_second_eigenvalue(G_opt)
+
+            # Track best by weighted objective
+            if best_G is None or weighted_objective(G_opt, alpha) > weighted_objective(best_G, alpha):
+                best_G = G_opt
+                best_ln_trees = ln_trees
+                best_lambda2 = lambda2
+
+        print(f"  → ln(trees) = {best_ln_trees:.4f}, λ₂ = {best_lambda2:.4f}")
+
+        pareto_points.append({
+            'alpha': alpha,
+            'ln_trees': best_ln_trees,
+            'lambda2': best_lambda2,
+            'graph': best_G
+        })
+
+    # Also add pure objectives for comparison
+    print(f"\n{'='*90}")
+    print("Adding reference points from single-objective optimizations...")
+    print("=" * 90)
+
+    # Pure trees
+    G_trees = nx.random_regular_graph(3, n, seed=9999)
+    G_trees, _ = gradient_ascent_first_improvement(
+        G_trees, max_iterations=max_iterations*2, verbose=False, objective='spanning_trees'
+    )
+    trees_ln = count_spanning_trees(G_trees)
+    trees_lambda = get_second_eigenvalue(G_trees)
+    print(f"Pure trees optimization: ln(trees) = {trees_ln:.4f}, λ₂ = {trees_lambda:.4f}")
+
+    # Pure expansion
+    G_expansion = nx.random_regular_graph(3, n, seed=8888)
+    G_expansion, _ = gradient_ascent_first_improvement(
+        G_expansion, max_iterations=max_iterations*2, verbose=False, objective='expansion'
+    )
+    expansion_ln = count_spanning_trees(G_expansion)
+    expansion_lambda = get_second_eigenvalue(G_expansion)
+    print(f"Pure expansion optimization: ln(trees) = {expansion_ln:.4f}, λ₂ = {expansion_lambda:.4f}")
+
+    # Plot Pareto frontier
+    print(f"\n{'='*90}")
+    print("Generating Pareto frontier plot...")
+    print("=" * 90)
+
+    fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(16, 6))
+
+    # Plot 1: Pareto frontier
+    ln_trees_vals = [p['ln_trees'] for p in pareto_points]
+    lambda2_vals = [p['lambda2'] for p in pareto_points]
+    alpha_vals = [p['alpha'] for p in pareto_points]
+
+    scatter = ax1.scatter(ln_trees_vals, lambda2_vals, c=alpha_vals,
+                         cmap='viridis', s=100, alpha=0.7, edgecolors='black')
+    ax1.plot(ln_trees_vals, lambda2_vals, 'k--', alpha=0.3, linewidth=1)
+
+    # Add reference points
+    ax1.scatter([trees_ln], [trees_lambda], color='blue', s=200, marker='*',
+               edgecolors='black', linewidth=2, label='Trees-opt (ref)', zorder=10)
+    ax1.scatter([expansion_ln], [expansion_lambda], color='red', s=200, marker='*',
+               edgecolors='black', linewidth=2, label='Expansion-opt (ref)', zorder=10)
+
+    # Annotate endpoints
+    ax1.annotate('α=0\n(expansion)', (ln_trees_vals[0], lambda2_vals[0]),
+                xytext=(-30, 20), textcoords='offset points',
+                bbox=dict(boxstyle='round', fc='yellow', alpha=0.7),
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+    ax1.annotate('α=1\n(trees)', (ln_trees_vals[-1], lambda2_vals[-1]),
+                xytext=(20, -30), textcoords='offset points',
+                bbox=dict(boxstyle='round', fc='yellow', alpha=0.7),
+                arrowprops=dict(arrowstyle='->', connectionstyle='arc3,rad=0'))
+
+    ax1.set_xlabel('ln(spanning trees)', fontsize=12)
+    ax1.set_ylabel('λ₂ (second eigenvalue)', fontsize=12)
+    ax1.set_title(f'Pareto Frontier (N={n})', fontsize=14, fontweight='bold')
+    ax1.grid(True, alpha=0.3)
+    ax1.legend()
+
+    # Add colorbar
+    cbar = plt.colorbar(scatter, ax=ax1)
+    cbar.set_label('α (weight on trees)', fontsize=10)
+
+    # Plot 2: Objectives vs alpha
+    ax2.plot(alpha_vals, ln_trees_vals, 'b-o', label='ln(trees)', linewidth=2, markersize=6)
+    ax2.set_xlabel('α (weight on trees)', fontsize=12)
+    ax2.set_ylabel('ln(spanning trees)', color='b', fontsize=12)
+    ax2.tick_params(axis='y', labelcolor='b')
+    ax2.grid(True, alpha=0.3)
+
+    ax2_twin = ax2.twinx()
+    ax2_twin.plot(alpha_vals, lambda2_vals, 'r-s', label='λ₂', linewidth=2, markersize=6)
+    ax2_twin.set_ylabel('λ₂ (second eigenvalue)', color='r', fontsize=12)
+    ax2_twin.tick_params(axis='y', labelcolor='r')
+
+    ax2.set_title(f'Objectives vs Weight α', fontsize=14, fontweight='bold')
+
+    # Add Ramanujan bound
+    ramanujan = 2.828427
+    ax2_twin.axhline(ramanujan, color='gray', linestyle='--', linewidth=1, alpha=0.5)
+    ax2_twin.text(0.5, ramanujan + 0.05, 'Ramanujan bound', fontsize=9, alpha=0.7)
+
+    plt.tight_layout()
+    plt.savefig(f'pareto_frontier_n{n}.png', dpi=150, bbox_inches='tight')
+    print(f"Saved plot to: pareto_frontier_n{n}.png")
+
+    # Print summary table
+    print(f"\n{'='*90}")
+    print("Pareto Frontier Summary")
+    print("=" * 90)
+    print(f"{'α':<8} {'Trees Weight':<15} {'ln(trees)':<14} {'λ₂':<12} {'Ramanujan':<12}")
+    print("-" * 90)
+    for p in pareto_points:
+        is_ramanujan = p['lambda2'] <= 2.828427
+        print(f"{p['alpha']:<8.2f} {p['alpha']:>6.0%} / {1-p['alpha']:>5.0%}     "
+              f"{p['ln_trees']:<14.6f} {p['lambda2']:<12.6f} {str(is_ramanujan):<12}")
+    print("=" * 90)
+
+    return pareto_points
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Explore Pareto frontier')
+    parser.add_argument('--n', type=int, default=30, help='Graph size (default: 30)')
+    parser.add_argument('--alphas', type=int, default=11, help='Number of alpha values (default: 11)')
+    parser.add_argument('--restarts', type=int, default=5, help='Restarts per alpha (default: 5)')
+    args = parser.parse_args()
+
+    pareto_points = explore_pareto_frontier(
+        n=args.n,
+        num_alphas=args.alphas,
+        restarts_per_alpha=args.restarts,
+        max_iterations=100
+    )

@@ -1,0 +1,17 @@
+Cubic Graph Optimization Summary
+================================
+
+Date: 2025-10-26 01:50:10
+N: 40
+k: 20
+Method: first-multifold
+Restarts: 100
+Trials run: 100
+Random seed: 42
+
+Results:
+--------
+ln(spanning trees): 2.479844
+Approx. spanning trees: 2.48e+00
+
+Graph file: cubic_n40_first-multifold_20251026_014712.pkl

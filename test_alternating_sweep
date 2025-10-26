@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""
+Sweep through multiple graph sizes to see convergence behavior.
+"""
+
+import sys
+import networkx as nx
+
+sys.path.insert(0, '/home/igor/devel/cubic-graph-optimizer')
+
+from cubic_graph_optimizer.optimization.alternating import alternating_optimization
+
+def test_sweep(n_values, max_cycles=15):
+    """
+    Test alternating optimization across multiple graph sizes.
+    """
+    print("=" * 90)
+    print("Alternating Optimization Sweep")
+    print("=" * 90)
+    print(f"{'N':<6} {'Behavior':<12} {'Cycles':<8} {'Final ln(trees)':<18} {'Final λ₂':<12} {'Δln(T)':<12} {'Δλ₂':<12}")
+    print("-" * 90)
+
+    results = []
+
+    for n in n_values:
+        # Start with random graph
+        G = nx.random_regular_graph(3, n, seed=42 + n)
+
+        # Run alternating optimization
+        result = alternating_optimization(
+            G,
+            objectives=['spanning_trees', 'expansion'],
+            max_cycles=max_cycles,
+            max_iterations_per_phase=100,
+            verbose=False
+        )
+
+        trajectory = result['trajectory']
+        initial = trajectory[0]
+        final = trajectory[-1]
+
+        # Determine behavior
+        if result['converged']:
+            behavior = "Converged"
+        elif result['cycled']:
+            behavior = f"Cycle-{result['num_cycles']}"
+        else:
+            behavior = "Max cycles"
+
+        delta_trees = final['ln_trees'] - initial['ln_trees']
+        delta_lambda2 = final['lambda2'] - initial['lambda2']
+
+        print(f"{n:<6} {behavior:<12} {result['num_cycles']:<8} "
+              f"{final['ln_trees']:<18.6f} {final['lambda2']:<12.6f} "
+              f"{delta_trees:>+11.6f} {delta_lambda2:>+11.6f}")
+
+        results.append({
+            'n': n,
+            'behavior': behavior,
+            'num_cycles': result['num_cycles'],
+            'final_ln_trees': final['ln_trees'],
+            'final_lambda2': final['lambda2'],
+            'delta_trees': delta_trees,
+            'delta_lambda2': delta_lambda2,
+            'converged': result['converged'],
+            'cycled': result['cycled']
+        })
+
+    print("=" * 90)
+
+    # Summary statistics
+    converged_count = sum(1 for r in results if r['converged'])
+    cycled_count = sum(1 for r in results if r['cycled'])
+
+    print(f"\nSummary:")
+    print(f"  Converged to fixed point: {converged_count}/{len(results)}")
+    print(f"  Entered limit cycle: {cycled_count}/{len(results)}")
+
+    # Check for common lambda2 values
+    lambda2_counts = {}
+    for r in results:
+        lambda2_rounded = round(r['final_lambda2'], 3)
+        lambda2_counts[lambda2_rounded] = lambda2_counts.get(lambda2_rounded, 0) + 1
+
+    print(f"\nCommon λ₂ values found:")
+    for lambda2, count in sorted(lambda2_counts.items(), key=lambda x: -x[1])[:5]:
+        print(f"  λ₂ ≈ {lambda2:.3f}: {count} graphs")
+
+    return results
+
+
+if __name__ == "__main__":
+    # Test a range of graph sizes
+    n_values = [10, 14, 20, 26, 30, 34, 40]
+
+    results = test_sweep(n_values, max_cycles=15)

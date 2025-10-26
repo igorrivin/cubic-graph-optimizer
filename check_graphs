@@ -1,0 +1,171 @@
+#!/usr/bin/env python3
+"""
+Check if graphs have more spanning trees than a baseline graph.
+
+Usage:
+    check_graphs baseline_graph.pkl test_graphs.json
+    check_graphs --baseline-T 25.5 test_graphs.json
+"""
+
+import argparse
+import json
+import sys
+import networkx as nx
+from pathlib import Path
+
+from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees
+from cubic_graph_optimizer.utils.validation import has_more_spanning_trees_than
+from cubic_graph_optimizer.utils.io import load_graph
+
+
+def load_graphs_from_json(json_file):
+    """Load graphs from JSON file (adjacency lists)."""
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+
+    graphs = []
+    for item in data:
+        # Support both dict format and just adjacency list
+        if isinstance(item, dict):
+            adj_list = item.get('adjacency_list', item.get('graph'))
+            name = item.get('name', f'graph_{len(graphs)}')
+        else:
+            adj_list = item
+            name = f'graph_{len(graphs)}'
+
+        # Convert adjacency list to graph
+        G = nx.Graph()
+        for node, neighbors in enumerate(adj_list):
+            for neighbor in neighbors:
+                if node < neighbor:  # Avoid duplicate edges
+                    G.add_edge(node, neighbor)
+
+        graphs.append((name, G))
+
+    return graphs
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Check if test graphs have more spanning trees than baseline',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  check_graphs baseline.pkl test_graphs.json
+  check_graphs --baseline-T 25.5 test_graphs.json
+  check_graphs baseline.pkl test_graphs.json --verbose
+        """
+    )
+
+    parser.add_argument('baseline', nargs='?',
+                       help='Baseline graph (.pkl file)')
+    parser.add_argument('test_graphs', nargs='?',
+                       help='JSON file with test graphs (adjacency lists)')
+    parser.add_argument('--baseline-T', type=float,
+                       help='Use explicit ln(trees) threshold instead of graph file')
+    parser.add_argument('--verbose', '-v', action='store_true',
+                       help='Show detailed output')
+    parser.add_argument('--output', '-o',
+                       help='Output results to file (JSON format)')
+
+    args = parser.parse_args()
+
+    # Validate arguments
+    if args.baseline_T is not None:
+        # Using explicit threshold
+        if args.test_graphs is None:
+            # baseline argument is actually the test_graphs file
+            test_graphs_file = args.baseline
+        else:
+            test_graphs_file = args.test_graphs
+    else:
+        # Using baseline graph file
+        if args.baseline is None or args.test_graphs is None:
+            parser.error("Either provide 'baseline test_graphs' or use '--baseline-T threshold test_graphs'")
+        test_graphs_file = args.test_graphs
+
+    # Load baseline threshold
+    if args.baseline_T is not None:
+        baseline_T = args.baseline_T
+        baseline_name = f"threshold_{baseline_T:.4f}"
+        if args.verbose:
+            print(f"Using explicit threshold: ln(T) = {baseline_T:.6f}")
+    else:
+        # Load baseline graph
+        baseline_path = Path(args.baseline)
+        if not baseline_path.exists():
+            print(f"Error: Baseline file not found: {baseline_path}", file=sys.stderr)
+            sys.exit(1)
+
+        baseline_G = load_graph(str(baseline_path))
+        baseline_T = count_spanning_trees(baseline_G)
+        baseline_name = baseline_path.stem
+
+        if args.verbose:
+            print(f"Baseline: {baseline_name}")
+            print(f"  N = {baseline_G.number_of_nodes()}")
+            print(f"  ln(trees) = {baseline_T:.6f}")
+            print()
+
+    # Load test graphs
+    test_graphs = load_graphs_from_json(test_graphs_file)
+
+    if args.verbose:
+        print(f"Loaded {len(test_graphs)} test graphs from {test_graphs_file}")
+        print()
+
+    # Check each graph
+    results = []
+    num_passed = 0
+
+    print(f"{'Graph Name':<30} {'N':>5} {'ln(trees)':>12} {'Result':<10}")
+    print("-" * 65)
+
+    for name, G in test_graphs:
+        # Compute spanning tree count
+        T_test = count_spanning_trees(G)
+
+        # Check against baseline
+        has_more = T_test > baseline_T
+
+        result_str = "PASS ✓" if has_more else "FAIL ✗"
+        if has_more:
+            num_passed += 1
+
+        print(f"{name:<30} {G.number_of_nodes():>5} {T_test:>12.6f} {result_str:<10}")
+
+        results.append({
+            'name': name,
+            'n': int(G.number_of_nodes()),
+            'ln_trees': float(T_test),
+            'has_more_than_baseline': bool(has_more)
+        })
+
+    print("-" * 65)
+    print(f"\nSummary: {num_passed}/{len(test_graphs)} graphs beat baseline")
+
+    # Save results if requested
+    if args.output:
+        output_data = {
+            'baseline': baseline_name,
+            'baseline_ln_trees': float(baseline_T),
+            'test_file': test_graphs_file,
+            'results': results,
+            'summary': {
+                'total': len(test_graphs),
+                'passed': num_passed,
+                'failed': len(test_graphs) - num_passed
+            }
+        }
+
+        with open(args.output, 'w') as f:
+            json.dump(output_data, f, indent=2)
+
+        print(f"\nResults saved to: {args.output}")
+
+    # Exit code: 0 if all pass, 1 if any fail
+    sys.exit(0 if num_passed == len(test_graphs) else 1)
+
+
+if __name__ == "__main__":
+    main()

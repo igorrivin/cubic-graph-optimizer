@@ -22,12 +22,6 @@ import sys
 from pathlib import Path
 from datetime import datetime
 
-# Add the parent directory to path to allow imports when running as script
-script_dir = os.path.dirname(os.path.abspath(__file__))
-if os.path.basename(script_dir) == 'cubic_graph_optimizer':
-    # We're in the package directory, add parent to path
-    sys.path.insert(0, os.path.dirname(script_dir))
-
 import networkx as nx
 
 # Import from our package
@@ -35,7 +29,7 @@ import cubic_graph_optimizer
 from cubic_graph_optimizer.optimization.methods import optimize_with_restarts
 from cubic_graph_optimizer.analysis.properties import analyze_graph_properties, compare_graph_structures
 from cubic_graph_optimizer.utils.io import save_graph
-from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees
+from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees, get_second_eigenvalue
 from cubic_graph_optimizer.utils.special_graphs import check_known_cages
 
 
@@ -59,12 +53,17 @@ Examples:
     parser.add_argument('N', type=int, help='Number of vertices (must be even)')
     
     # Optimization options
-    parser.add_argument('--method', '-m', 
-                      choices=['greedy', 'first', 'sa'], 
+    parser.add_argument('--method', '-m',
+                      choices=['greedy', 'first', 'first-multifold', 'sa', 'sa-multifold'],
                       default='greedy',
                       help='Optimization method (default: greedy)')
-    
-    parser.add_argument('--restarts', '-r', 
+
+    parser.add_argument('--objective',
+                      choices=['spanning_trees', 'expansion'],
+                      default='spanning_trees',
+                      help='Optimization objective: spanning_trees (maximize) or expansion (minimize λ₂) (default: spanning_trees)')
+
+    parser.add_argument('--restarts', '-r',
                       default='1',
                       help='Number of restarts or "auto" (default: 1)')
     
@@ -132,7 +131,10 @@ Examples:
     
     # Set default max iterations based on method
     if args.max_iterations is None:
-        args.max_iterations = 500 if args.method == 'sa' else 100
+        if args.method in ['sa', 'sa-multifold']:
+            args.max_iterations = 500
+        else:
+            args.max_iterations = 100
     
     return args
 
@@ -172,16 +174,38 @@ def main():
         parallel=args.parallel,
         base_seed=args.seed,
         verbose=args.verbose,
-        max_iterations=args.max_iterations
+        max_iterations=args.max_iterations,
+        objective=args.objective
     )
     
+    # Calculate both objectives on final graph
+    final_ln_trees = count_spanning_trees(G_opt)
+    final_lambda2 = get_second_eigenvalue(G_opt)
+
     # Results summary
     print(f"\n{'='*70}")
     print(f"OPTIMIZATION COMPLETE")
     print(f"{'='*70}")
+    print(f"Objective: {args.objective}")
     print(f"Trials run: {num_trials}")
-    print(f"Best ln(spanning trees): {T_opt:.6f}")
-    print(f"Approx. spanning trees: {T_opt:.2e}")
+
+    if args.objective == 'spanning_trees':
+        print(f"\nPrimary objective (spanning trees):")
+        print(f"  ln(spanning trees): {final_ln_trees:.6f}")
+        print(f"  Approx. trees:      {final_ln_trees:.2e}")
+        print(f"\nSecondary metric (expansion):")
+        print(f"  λ₂ (second eigenvalue): {final_lambda2:.6f}")
+    else:  # expansion
+        print(f"\nPrimary objective (expansion):")
+        print(f"  λ₂ (second eigenvalue): {final_lambda2:.6f}")
+        print(f"\nSecondary metric (spanning trees):")
+        print(f"  ln(spanning trees): {final_ln_trees:.6f}")
+        print(f"  Approx. trees:      {final_ln_trees:.2e}")
+
+    # Ramanujan bound check
+    ramanujan_bound = 2 * (2 ** 0.5)
+    is_ramanujan = final_lambda2 <= ramanujan_bound
+    print(f"\nRamanujan graph (λ₂ ≤ 2√2 ≈ 2.828): {is_ramanujan}")
     
     if args.compare:
         improvement = T_opt - T_initial

@@ -1,0 +1,101 @@
+#!/usr/bin/env python3
+"""
+Test eigenvalue optimization and compare spanning tree counts.
+"""
+
+import sys
+import networkx as nx
+
+# Add package to path
+sys.path.insert(0, '/home/igor/devel/cubic-graph-optimizer')
+
+from cubic_graph_optimizer.optimization.methods import gradient_ascent_first_improvement
+from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees, get_second_eigenvalue
+
+def test_eigenvalue_optimization(n=20, max_iterations=100):
+    """
+    Test optimization for both objectives and compare results.
+
+    Args:
+        n: Number of vertices (must be even)
+        max_iterations: Maximum optimization iterations
+    """
+    print(f"Testing eigenvalue optimization for N={n}")
+    print("=" * 70)
+
+    # Generate two random starting graphs
+    G_trees = nx.random_regular_graph(3, n, seed=42)
+    G_expansion = nx.random_regular_graph(3, n, seed=43)
+
+    # Baseline measurements
+    print("\nBaseline (random graphs):")
+    print(f"  Graph 1: ln(trees) = {count_spanning_trees(G_trees):.6f}, λ₂ = {get_second_eigenvalue(G_trees):.6f}")
+    print(f"  Graph 2: ln(trees) = {count_spanning_trees(G_expansion):.6f}, λ₂ = {get_second_eigenvalue(G_expansion):.6f}")
+
+    # Optimize for spanning trees
+    print("\n" + "=" * 70)
+    print("Optimizing Graph 1 for MAXIMUM SPANNING TREES...")
+    print("=" * 70)
+    G_trees_opt, final_trees = gradient_ascent_first_improvement(
+        G_trees.copy(),
+        max_iterations=max_iterations,
+        verbose=True,
+        objective='spanning_trees'
+    )
+
+    # Optimize for expansion (minimize λ₂)
+    print("\n" + "=" * 70)
+    print("Optimizing Graph 2 for EXPANSION (minimize λ₂)...")
+    print("=" * 70)
+    G_expansion_opt, final_lambda2 = gradient_ascent_first_improvement(
+        G_expansion.copy(),
+        max_iterations=max_iterations,
+        verbose=True,
+        objective='expansion'
+    )
+
+    # Compare results
+    print("\n" + "=" * 70)
+    print("RESULTS COMPARISON")
+    print("=" * 70)
+
+    trees_opt_trees = count_spanning_trees(G_trees_opt)
+    trees_opt_lambda2 = get_second_eigenvalue(G_trees_opt)
+
+    expansion_opt_trees = count_spanning_trees(G_expansion_opt)
+    expansion_opt_lambda2 = get_second_eigenvalue(G_expansion_opt)
+
+    print("\nGraph optimized for SPANNING TREES:")
+    print(f"  ln(trees) = {trees_opt_trees:.6f}")
+    print(f"  λ₂        = {trees_opt_lambda2:.6f}")
+
+    print("\nGraph optimized for EXPANSION (min λ₂):")
+    print(f"  ln(trees) = {expansion_opt_trees:.6f}")
+    print(f"  λ₂        = {expansion_opt_lambda2:.6f}")
+
+    print("\n" + "=" * 70)
+    print("COMPARISON:")
+    print("=" * 70)
+
+    trees_diff = trees_opt_trees - expansion_opt_trees
+    lambda2_diff = expansion_opt_lambda2 - trees_opt_lambda2
+
+    print(f"\nSpanning trees advantage (trees-opt vs expansion-opt):")
+    print(f"  Δln(trees) = {trees_diff:+.6f}")
+    print(f"  ({trees_diff/expansion_opt_trees*100:+.2f}%)")
+
+    print(f"\nExpansion advantage (expansion-opt vs trees-opt):")
+    print(f"  Δλ₂ = {lambda2_diff:+.6f}")
+    print(f"  ({lambda2_diff/trees_opt_lambda2*100:+.2f}%)")
+
+    # Check Ramanujan bound
+    ramanujan_bound = 2 * (2 ** 0.5)  # 2√2 ≈ 2.828
+    print(f"\nRamanujan bound (2√2): {ramanujan_bound:.6f}")
+    print(f"  Trees-optimized is Ramanujan: {trees_opt_lambda2 <= ramanujan_bound}")
+    print(f"  Expansion-optimized is Ramanujan: {expansion_opt_lambda2 <= ramanujan_bound}")
+
+    print("\n" + "=" * 70)
+
+if __name__ == "__main__":
+    # Test with N=20 (moderate size)
+    test_eigenvalue_optimization(n=20, max_iterations=100)

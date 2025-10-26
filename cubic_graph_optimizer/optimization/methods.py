@@ -8,8 +8,30 @@ import random
 from concurrent.futures import ProcessPoolExecutor
 import multiprocessing
 
-from ..core.spanning_trees import count_spanning_trees
+from ..core.spanning_trees import count_spanning_trees, get_second_eigenvalue
 from ..core.graph_operations import get_valid_whitehead_flips, apply_whitehead_flip
+
+
+def get_objective_function(objective='spanning_trees'):
+    """
+    Get the objective function to optimize.
+
+    Args:
+        objective: One of 'spanning_trees' (maximize ln(trees)) or
+                  'expansion' (minimize λ₂, i.e., maximize spectral gap)
+
+    Returns:
+        tuple: (objective_func, maximize, name)
+               objective_func: function that takes graph G and returns objective value
+               maximize: True if we want to maximize, False if minimize
+               name: display name for the objective
+    """
+    if objective == 'spanning_trees':
+        return count_spanning_trees, True, 'ln(spanning trees)'
+    elif objective == 'expansion':
+        return get_second_eigenvalue, False, 'λ₂ (second eigenvalue)'
+    else:
+        raise ValueError(f"Unknown objective: {objective}. Choose 'spanning_trees' or 'expansion'")
 
 
 def gradient_ascent_greedy(G, max_iterations=1000, verbose=True):
@@ -68,59 +90,64 @@ def gradient_ascent_greedy(G, max_iterations=1000, verbose=True):
     return G, current_value
 
 
-def gradient_ascent_first_improvement(G, max_iterations=1000, verbose=True):
+def gradient_ascent_first_improvement(G, max_iterations=1000, verbose=True, objective='spanning_trees'):
     """
-    First-improvement gradient ascent: take the first flip that improves T.
+    First-improvement gradient ascent: take the first flip that improves the objective.
     Much faster than greedy, but may not reach as good a local optimum.
-    
+
     Args:
         G: NetworkX graph
         max_iterations: Maximum iterations
         verbose: Whether to print progress
-        
+        objective: 'spanning_trees' (maximize) or 'expansion' (minimize λ₂)
+
     Returns:
-        tuple: (optimized_graph, final_ln_spanning_trees)
+        tuple: (optimized_graph, final_objective_value)
     """
-    current_value = count_spanning_trees(G)
-    
+    obj_func, maximize, obj_name = get_objective_function(objective)
+    current_value = obj_func(G)
+
     if verbose:
-        print(f"Initial T value: {current_value:.6f}")
-    
+        print(f"Initial {obj_name} value: {current_value:.6f}")
+
     for iteration in range(max_iterations):
         valid_flips = get_valid_whitehead_flips(G)
-        
+
         if not valid_flips:
             if verbose:
                 print(f"No valid flips available at iteration {iteration}")
             break
-        
+
         # Shuffle to avoid bias
         random.shuffle(valid_flips)
-        
+
         improved = False
         for edge1, edge2, flip_type in valid_flips:
             # Apply flip temporarily
             G_temp = G.copy()
             apply_whitehead_flip(G_temp, edge1, edge2, flip_type)
-            
-            new_value = count_spanning_trees(G_temp)
-            
-            if new_value > current_value:
+
+            new_value = obj_func(G_temp)
+
+            # Check if improved (maximize or minimize based on objective)
+            is_better = (new_value > current_value) if maximize else (new_value < current_value)
+
+            if is_better:
                 # Apply this flip
                 apply_whitehead_flip(G, edge1, edge2, flip_type)
                 current_value = new_value
                 improved = True
-                
+
                 if verbose and (iteration % 10 == 0 or iteration < 10):
-                    print(f"Iteration {iteration}: T = {current_value:.6f}")
+                    print(f"Iteration {iteration}: {obj_name} = {current_value:.6f}")
                 break
-        
+
         if not improved:
             if verbose:
-                print(f"Local maximum reached at iteration {iteration}")
-                print(f"Final T value: {current_value:.6f}")
+                print(f"Local optimum reached at iteration {iteration}")
+                print(f"Final {obj_name} value: {current_value:.6f}")
             break
-    
+
     return G, current_value
 
 
@@ -260,6 +287,278 @@ def simulated_annealing(G, max_iterations=1000, T0=None, cooling_rate=0.97,
     return best_G, best_value
 
 
+def compute_default_lambda(n):
+    """
+    Compute default lambda parameter for multi-flip moves based on graph size.
+
+    The diameter of the graph space under Whitehead flips scales roughly with N,
+    so multi-flip jump sizes should scale accordingly.
+
+    Args:
+        n: Number of vertices in the graph
+
+    Returns:
+        float: Default lambda value (expected number of flips per move)
+    """
+    # Use N/10 as a baseline heuristic
+    lambda_base = n / 10.0
+
+    # Ensure a minimum of 1.0 for small graphs
+    return max(1.0, lambda_base)
+
+
+def gradient_ascent_first_multifold(G, max_iterations=1000, lambda_jump=None,
+                                     jump_prob=0.1, max_attempts_per_iteration=100, verbose=True,
+                                     objective='spanning_trees'):
+    """
+    First-improvement gradient ascent with mixture distribution for flip counts.
+
+    Uses a mixture of single flips and multi-flips:
+    - With probability jump_prob: perform k ~ Poisson(λ_jump) flips (big jump)
+    - With probability 1-jump_prob: perform exactly 1 flip (local search)
+
+    This creates "fat-tailed" exploration: mostly efficient single flips, but occasional
+    large jumps to escape local optima.
+
+    Args:
+        G: NetworkX graph
+        max_iterations: Maximum number of successful moves
+        lambda_jump: Mean for Poisson when taking big jumps (default: N/5)
+        jump_prob: Probability of attempting a big jump (default: 0.1)
+        max_attempts_per_iteration: Max random multi-flips to try before giving up
+        verbose: Whether to print progress
+        objective: 'spanning_trees' (maximize) or 'expansion' (minimize λ₂)
+
+    Returns:
+        tuple: (optimized_graph, final_objective_value)
+    """
+    n = G.number_of_nodes()
+
+    # Auto-compute lambda_jump if not provided
+    if lambda_jump is None:
+        lambda_jump = max(2.0, n / 5.0)
+
+    obj_func, maximize, obj_name = get_objective_function(objective)
+    current_value = obj_func(G)
+    total_flips_performed = 0
+    num_jumps = 0
+
+    if verbose:
+        print(f"Initial {obj_name} value: {current_value:.6f}")
+        print(f"N = {n}, λ_jump = {lambda_jump:.2f}, p_jump = {jump_prob:.2f}")
+        print(f"(Mixture: mostly single flips, occasional big jumps)\n")
+
+    for iteration in range(max_iterations):
+        improved = False
+
+        # Try random multi-flip moves until we find an improving one
+        for attempt in range(max_attempts_per_iteration):
+            # Sample number of flips using mixture distribution
+            if random.random() < jump_prob:
+                # Take a big jump: sample from Poisson(lambda_jump)
+                num_flips = 0
+                while num_flips < 1:
+                    num_flips = np.random.poisson(lambda_jump)
+                is_jump = True
+            else:
+                # Single flip (most common case)
+                num_flips = 1
+                is_jump = False
+
+            # Create a temporary graph for the multi-flip move
+            G_temp = G.copy()
+
+            # Apply num_flips random Whitehead flips sequentially
+            valid_move = True
+            flips_in_attempt = 0
+            for _ in range(num_flips):
+                valid_flips = get_valid_whitehead_flips(G_temp)
+
+                if not valid_flips:
+                    valid_move = False
+                    break
+
+                edge1, edge2, flip_type = random.choice(valid_flips)
+                apply_whitehead_flip(G_temp, edge1, edge2, flip_type)
+                flips_in_attempt += 1
+
+            total_flips_performed += flips_in_attempt
+
+            if not valid_move:
+                continue  # Try another multi-flip sequence
+
+            # Evaluate the final state
+            new_value = obj_func(G_temp)
+
+            # Check if improved (maximize or minimize based on objective)
+            is_better = (new_value > current_value) if maximize else (new_value < current_value)
+
+            if is_better:
+                # Found an improvement! Apply it
+                G = G_temp
+                current_value = new_value
+                improved = True
+                if is_jump:
+                    num_jumps += 1
+
+                if verbose and (iteration % 10 == 0 or iteration < 10):
+                    jump_str = " (BIG JUMP!)" if is_jump else ""
+                    print(f"Iteration {iteration}: {obj_name} = {current_value:.6f} "
+                          f"(found after {attempt+1} attempts, {flips_in_attempt} flips{jump_str}, "
+                          f"total flips: {total_flips_performed})")
+                break
+
+        if not improved:
+            if verbose:
+                print(f"\nLocal optimum reached at iteration {iteration}")
+                print(f"Final {obj_name} value: {current_value:.6f}")
+                print(f"Total flips performed: {total_flips_performed}")
+                print(f"Big jumps taken: {num_jumps}/{iteration} ({100*num_jumps/max(1,iteration):.1f}%)")
+            break
+
+    return G, current_value
+
+
+def simulated_annealing_multifold(G, max_iterations=1000, T0=None, cooling_rate=0.97,
+                                  lambda_jump=None, jump_prob_max=0.15, verbose=True):
+    """
+    Multi-fold simulated annealing with mixture distribution for flip counts.
+
+    Uses a mixture of single flips and multi-flips:
+    - With probability p(T) = jump_prob_max * (T/T0): perform k ~ Poisson(λ_jump) flips (big jump)
+    - With probability 1-p(T): perform exactly 1 flip (local search)
+
+    This creates "fat-tailed" exploration: mostly efficient single flips, but occasional
+    large jumps to escape local optima. Jump probability decreases with temperature.
+
+    Args:
+        G: NetworkX graph
+        max_iterations: Maximum number of moves to attempt
+        T0: Initial temperature (auto-calibrated if None)
+        cooling_rate: Multiply temperature by this each iteration (0.95-0.99 typical)
+        lambda_jump: Mean for Poisson when taking big jumps (default: N/5)
+        jump_prob_max: Maximum probability of big jump at T=T0 (default: 0.15)
+        verbose: Whether to print progress
+
+    Returns:
+        tuple: (optimized_graph, final_ln_spanning_trees)
+    """
+    n = G.number_of_nodes()
+
+    # Auto-compute lambda_jump if not provided
+    if lambda_jump is None:
+        lambda_jump = max(2.0, n / 5.0)  # Bigger jumps when we do jump
+
+    current_value = count_spanning_trees(G)
+    best_G = G.copy()
+    best_value = current_value
+
+    # Auto-calibrate temperature if not provided
+    if T0 is None:
+        T0 = calibrate_temperature(G)
+        if verbose:
+            print(f"Auto-calibrated T0 = {T0:.4f}")
+
+    temperature = T0
+    accepts = 0
+    total_attempts = 0
+    total_flips = 0
+    total_flips_overall = 0
+    num_jumps = 0
+
+    if verbose:
+        print(f"Initial T value: {current_value:.6f}")
+        print(f"N = {n}, λ_jump = {lambda_jump:.2f}, p_jump_max = {jump_prob_max:.2f}")
+        print(f"(Mixture: mostly single flips, occasional big jumps)\n")
+
+    for iteration in range(max_iterations):
+        # Determine number of flips using mixture distribution
+        p_jump = jump_prob_max * (temperature / T0)  # Jump probability decreases with T
+
+        if random.random() < p_jump:
+            # Take a big jump: sample from Poisson(lambda_jump)
+            num_flips = 0
+            while num_flips < 1:
+                num_flips = np.random.poisson(lambda_jump)
+            num_jumps += 1
+        else:
+            # Single flip (most common case)
+            num_flips = 1
+
+        # Create a temporary graph for the multi-flip move
+        G_temp = G.copy()
+        flips_applied = []
+
+        # Apply num_flips Whitehead flips sequentially
+        valid_move = True
+        for _ in range(num_flips):
+            valid_flips = get_valid_whitehead_flips(G_temp)
+
+            if not valid_flips:
+                # Can't complete the desired number of flips
+                valid_move = False
+                break
+
+            # Pick a random flip
+            edge1, edge2, flip_type = random.choice(valid_flips)
+            apply_whitehead_flip(G_temp, edge1, edge2, flip_type)
+            flips_applied.append((edge1, edge2, flip_type))
+
+        if not valid_move:
+            if verbose:
+                print(f"No valid flips available at iteration {iteration}")
+            break
+
+        # Evaluate the final state after all flips
+        new_value = count_spanning_trees(G_temp)
+        delta = new_value - current_value
+        total_attempts += 1
+        total_flips += len(flips_applied)
+        total_flips_overall += len(flips_applied)
+
+        # Accept or reject the entire multi-flip move based on Metropolis criterion
+        if delta > 0:
+            # Always accept improvements
+            accept = True
+        else:
+            # Accept worse moves with probability exp(delta / temperature)
+            accept_prob = np.exp(delta / temperature)
+            accept = random.random() < accept_prob
+
+        if accept:
+            # Apply all flips to the actual graph
+            G = G_temp
+            current_value = new_value
+            accepts += 1
+
+            # Track best solution found
+            if current_value > best_value:
+                best_G = G.copy()
+                best_value = current_value
+
+        # Cool down
+        temperature *= cooling_rate
+
+        # Periodic progress reporting
+        if verbose and iteration % 50 == 0:
+            accept_rate = accepts / total_attempts if total_attempts > 0 else 0
+            avg_flips = total_flips / total_attempts if total_attempts > 0 else 0
+            jump_rate = num_jumps / (iteration + 1)
+            print(f"Iter {iteration}: T_val = {current_value:.6f}, best = {best_value:.6f}, "
+                  f"temp = {temperature:.4f}, p_jump = {p_jump:.3f}, "
+                  f"accept_rate = {accept_rate:.2f}, avg_flips = {avg_flips:.1f}, jumps = {num_jumps}")
+            accepts = 0
+            total_attempts = 0
+            total_flips = 0
+
+    if verbose:
+        print(f"\nFinal T value: {best_value:.6f}")
+        print(f"Total flips performed: {total_flips_overall}")
+        print(f"Big jumps taken: {num_jumps}/{max_iterations} ({100*num_jumps/max_iterations:.1f}%)")
+
+    return best_G, best_value
+
+
 def _run_single_optimization(args):
     """
     Helper function for parallel optimization.
@@ -275,11 +574,15 @@ def _run_single_optimization(args):
         G_opt, T_opt = gradient_ascent_greedy(G, **method_kwargs)
     elif method == 'first':
         G_opt, T_opt = gradient_ascent_first_improvement(G, **method_kwargs)
+    elif method == 'first-multifold':
+        G_opt, T_opt = gradient_ascent_first_multifold(G, **method_kwargs)
     elif method == 'sa':
         G_opt, T_opt = simulated_annealing(G, **method_kwargs)
+    elif method == 'sa-multifold':
+        G_opt, T_opt = simulated_annealing_multifold(G, **method_kwargs)
     else:
         raise ValueError(f"Unknown method: {method}")
-    
+
     return G_opt, T_opt, seed
 
 
@@ -352,8 +655,12 @@ def optimize_with_restarts(n, method='greedy', restarts=1, parallel=False,
                 G_opt, T_opt = gradient_ascent_greedy(G, verbose=False, **method_kwargs)
             elif method == 'first':
                 G_opt, T_opt = gradient_ascent_first_improvement(G, verbose=False, **method_kwargs)
+            elif method == 'first-multifold':
+                G_opt, T_opt = gradient_ascent_first_multifold(G, verbose=False, **method_kwargs)
             elif method == 'sa':
                 G_opt, T_opt = simulated_annealing(G, verbose=False, **method_kwargs)
+            elif method == 'sa-multifold':
+                G_opt, T_opt = simulated_annealing_multifold(G, verbose=False, **method_kwargs)
             else:
                 raise ValueError(f"Unknown method: {method}")
             
@@ -391,8 +698,12 @@ def _optimize_with_auto_restarts(n, method, parallel, base_seed, verbose, **meth
             G_opt, T_opt = gradient_ascent_greedy(G, verbose=False, **method_kwargs)
         elif method == 'first':
             G_opt, T_opt = gradient_ascent_first_improvement(G, verbose=False, **method_kwargs)
+        elif method == 'first-multifold':
+            G_opt, T_opt = gradient_ascent_first_multifold(G, verbose=False, **method_kwargs)
         elif method == 'sa':
             G_opt, T_opt = simulated_annealing(G, verbose=False, **method_kwargs)
+        elif method == 'sa-multifold':
+            G_opt, T_opt = simulated_annealing_multifold(G, verbose=False, **method_kwargs)
         else:
             raise ValueError(f"Unknown method: {method}")
         

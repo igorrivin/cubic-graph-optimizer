@@ -1,0 +1,17 @@
+Cubic Graph Optimization Summary
+================================
+
+Date: 2025-10-25 18:40:44
+N: 14
+k: 7
+Method: sa-multifold
+Restarts: 1
+Trials run: 1
+Random seed: 42
+
+Results:
+--------
+ln(spanning trees): 10.791379
+Approx. spanning trees: 1.08e+01
+
+Graph file: cubic_n14_sa-multifold_20251025_184043.pkl

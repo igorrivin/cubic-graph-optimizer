@@ -1,0 +1,104 @@
+#!/usr/bin/env python3
+"""
+Test for longer limit cycles in alternating optimization.
+"""
+
+import sys
+import networkx as nx
+
+sys.path.insert(0, '/home/igor/devel/cubic-graph-optimizer')
+
+from cubic_graph_optimizer.optimization.alternating import alternating_optimization
+
+def test_long_cycles(n_values, max_cycles=30):
+    """
+    Test for longer cycles with larger N and more iterations.
+    """
+    print("=" * 100)
+    print("Long Cycle Detection in Alternating Optimization")
+    print("=" * 100)
+    print(f"Testing N values: {n_values}")
+    print(f"Max cycles: {max_cycles}")
+    print("=" * 100)
+
+    results = []
+
+    for n in n_values:
+        print(f"\n{'='*100}")
+        print(f"N = {n}")
+        print(f"{'='*100}")
+
+        # Start with random graph
+        G = nx.random_regular_graph(3, n, seed=42 + n)
+
+        # Run alternating optimization
+        result = alternating_optimization(
+            G,
+            objectives=['spanning_trees', 'expansion'],
+            max_cycles=max_cycles,
+            max_iterations_per_phase=200,  # More iterations per phase
+            min_improvement=1e-7,  # Tighter convergence criterion
+            verbose=True
+        )
+
+        results.append({
+            'n': n,
+            'result': result
+        })
+
+        # Analyze the cycle structure
+        trajectory = result['trajectory']
+
+        if result['cycled']:
+            cycle_length = result['num_cycles'] - result['cycle_start']
+            print(f"\n📊 Cycle Structure:")
+            print(f"   Cycle starts at: cycle {result['cycle_start']}")
+            print(f"   Detected at: cycle {result['num_cycles']}")
+            print(f"   Cycle length: {cycle_length}")
+
+            # Show the repeating pattern
+            print(f"\n   Repeating pattern:")
+            cycle_start_idx = None
+            for i, state in enumerate(trajectory):
+                if state['cycle'] == result['cycle_start']:
+                    cycle_start_idx = i
+                    break
+
+            if cycle_start_idx is not None:
+                pattern_states = trajectory[cycle_start_idx:]
+                for i, state in enumerate(pattern_states[:min(6, len(pattern_states))]):
+                    print(f"     Step {i}: {state['phase']:<20} "
+                          f"ln(T)={state['ln_trees']:.6f}, λ₂={state['lambda2']:.6f}")
+
+    print("\n" + "=" * 100)
+    print("Summary of Cycle Lengths")
+    print("=" * 100)
+    print(f"{'N':<6} {'Cycle Length':<15} {'Total Cycles':<15} {'Final ln(trees)':<18} {'Final λ₂':<12}")
+    print("-" * 100)
+
+    for r in results:
+        n = r['n']
+        result = r['result']
+        trajectory = result['trajectory']
+        final = trajectory[-1]
+
+        if result['cycled']:
+            cycle_length = result['num_cycles'] - result['cycle_start']
+        elif result['converged']:
+            cycle_length = 0  # Converged, no cycle
+        else:
+            cycle_length = "?"  # Unknown
+
+        print(f"{n:<6} {str(cycle_length):<15} {result['num_cycles']:<15} "
+              f"{final['ln_trees']:<18.6f} {final['lambda2']:<12.6f}")
+
+    print("=" * 100)
+
+    return results
+
+
+if __name__ == "__main__":
+    # Test larger graphs that might have more complex dynamics
+    n_values = [40, 50, 60, 70]
+
+    results = test_long_cycles(n_values, max_cycles=30)

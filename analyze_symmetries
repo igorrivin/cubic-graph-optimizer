@@ -1,0 +1,199 @@
+#!/usr/bin/env python3
+"""
+Analyze automorphism groups and symmetries of optimized graphs.
+"""
+
+import sys
+import networkx as nx
+from collections import Counter
+
+sys.path.insert(0, '/home/igor/devel/cubic-graph-optimizer')
+
+from cubic_graph_optimizer.optimization.methods import gradient_ascent_first_improvement
+from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees, get_second_eigenvalue
+from cubic_graph_optimizer.optimization.alternating import alternating_optimization
+
+def analyze_graph_symmetry(G, name="Graph"):
+    """
+    Analyze the symmetry properties of a graph.
+    """
+    print(f"\n{'='*70}")
+    print(f"Symmetry Analysis: {name}")
+    print(f"{'='*70}")
+
+    n = G.number_of_nodes()
+    m = G.number_of_edges()
+
+    print(f"Basic properties:")
+    print(f"  Vertices: {n}")
+    print(f"  Edges: {m}")
+    print(f"  Degree sequence: {sorted(dict(G.degree()).values(), reverse=True)[:10]}")
+
+    # Compute automorphism group
+    print(f"\nComputing automorphism group...")
+    try:
+        # NetworkX uses nauty via pynauty if available, otherwise falls back
+        # VF2 is slow but works for moderate sizes
+        import networkx.algorithms.isomorphism as iso
+
+        # For efficiency, we'll estimate the automorphism group size
+        # by sampling node orbits
+        GM = iso.GraphMatcher(G, G)
+        automorphisms = list(GM.isomorphisms_iter())
+
+        # Limit to avoid huge computation
+        if len(automorphisms) > 1000:
+            print(f"  Automorphism group size: >{len(automorphisms)} (stopped counting)")
+            aut_count = f">{len(automorphisms)}"
+        else:
+            aut_count = len(automorphisms)
+            print(f"  Automorphism group size: {aut_count}")
+
+        # Analyze vertex orbits (vertices that can be mapped to each other)
+        if len(automorphisms) <= 1000:
+            vertex_orbits = {}
+            for v in G.nodes():
+                orbit = set()
+                for aut in automorphisms:
+                    orbit.add(aut[v])
+                orbit_key = tuple(sorted(orbit))
+                if orbit_key not in vertex_orbits:
+                    vertex_orbits[orbit_key] = []
+                vertex_orbits[orbit_key].append(v)
+
+            print(f"  Number of vertex orbits: {len(vertex_orbits)}")
+            orbit_sizes = Counter([len(orbit) for orbit in vertex_orbits.keys()])
+            print(f"  Orbit size distribution: {dict(orbit_sizes)}")
+
+            # Check if vertex-transitive
+            is_vertex_transitive = len(vertex_orbits) == 1
+            print(f"  Vertex-transitive: {is_vertex_transitive}")
+
+            # Check if edge-transitive
+            edge_orbits = {}
+            for e in G.edges():
+                orbit = set()
+                for aut in automorphisms:
+                    mapped_edge = tuple(sorted([aut[e[0]], aut[e[1]]]))
+                    orbit.add(mapped_edge)
+                orbit_key = tuple(sorted(orbit))
+                if orbit_key not in edge_orbits:
+                    edge_orbits[orbit_key] = []
+                edge_orbits[orbit_key].append(e)
+
+            is_edge_transitive = len(edge_orbits) == 1
+            print(f"  Edge-transitive: {is_edge_transitive}")
+
+            # Highly symmetric graphs
+            if is_vertex_transitive and is_edge_transitive:
+                print(f"  ⭐ Graph is SYMMETRIC (both vertex and edge transitive)!")
+
+    except Exception as e:
+        print(f"  Could not compute automorphisms: {e}")
+        aut_count = "unknown"
+
+    # Spectral properties
+    print(f"\nSpectral properties:")
+    eigenvalues = sorted(nx.adjacency_spectrum(G).real, reverse=True)
+    print(f"  Top 5 eigenvalues: {[f'{ev:.4f}' for ev in eigenvalues[:5]]}")
+    print(f"  Bottom 5 eigenvalues: {[f'{ev:.4f}' for ev in eigenvalues[-5:]]}")
+
+    # Count eigenvalue multiplicities
+    eigenvalue_counts = Counter([round(ev, 4) for ev in eigenvalues])
+    high_multiplicity = [(ev, count) for ev, count in eigenvalue_counts.items()
+                         if count > 1]
+    if high_multiplicity:
+        print(f"  Eigenvalues with multiplicity > 1:")
+        for ev, count in sorted(high_multiplicity, key=lambda x: -x[1])[:5]:
+            print(f"    λ = {ev:.4f}: multiplicity {count}")
+
+    # Graph metrics
+    print(f"\nOther properties:")
+    print(f"  Diameter: {nx.diameter(G)}")
+    print(f"  Average clustering: {nx.average_clustering(G):.6f}")
+
+    ln_trees = count_spanning_trees(G)
+    lambda2 = get_second_eigenvalue(G)
+    print(f"  ln(spanning trees): {ln_trees:.6f}")
+    print(f"  λ₂ (second eigenvalue): {lambda2:.6f}")
+
+    ramanujan = lambda2 <= 2.828427
+    print(f"  Ramanujan graph: {ramanujan}")
+
+    return {
+        'n': n,
+        'automorphism_count': aut_count,
+        'ln_trees': ln_trees,
+        'lambda2': lambda2
+    }
+
+
+def compare_optimization_strategies(n, seed=42):
+    """
+    Compare graphs from different optimization strategies.
+    """
+    print(f"\n{'='*70}")
+    print(f"Comparing Optimization Strategies for N={n}")
+    print(f"{'='*70}")
+
+    # Random baseline
+    G_random = nx.random_regular_graph(3, n, seed=seed)
+
+    # Trees-only optimization
+    G_trees = nx.random_regular_graph(3, n, seed=seed + 1)
+    G_trees, _ = gradient_ascent_first_improvement(
+        G_trees, max_iterations=200, verbose=False, objective='spanning_trees'
+    )
+
+    # Expansion-only optimization
+    G_expansion = nx.random_regular_graph(3, n, seed=seed + 2)
+    G_expansion, _ = gradient_ascent_first_improvement(
+        G_expansion, max_iterations=200, verbose=False, objective='expansion'
+    )
+
+    # Alternating optimization
+    G_alternating = nx.random_regular_graph(3, n, seed=seed + 3)
+    result = alternating_optimization(
+        G_alternating,
+        max_cycles=20,
+        max_iterations_per_phase=200,
+        verbose=False
+    )
+    G_alternating = result['final_graph']
+
+    # Analyze each
+    graphs = [
+        (G_random, "Random"),
+        (G_trees, "Trees-optimized"),
+        (G_expansion, "Expansion-optimized"),
+        (G_alternating, "Alternating-optimized")
+    ]
+
+    results = []
+    for G, name in graphs:
+        result = analyze_graph_symmetry(G, name)
+        results.append((name, result))
+
+    # Summary comparison
+    print(f"\n{'='*70}")
+    print(f"Comparison Summary (N={n})")
+    print(f"{'='*70}")
+    print(f"{'Strategy':<25} {'|Aut|':<12} {'ln(trees)':<14} {'λ₂':<12}")
+    print("-" * 70)
+    for name, res in results:
+        print(f"{name:<25} {str(res['automorphism_count']):<12} "
+              f"{res['ln_trees']:<14.6f} {res['lambda2']:<12.6f}")
+    print("=" * 70)
+
+    return results
+
+
+if __name__ == "__main__":
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Analyze graph symmetries')
+    parser.add_argument('--n', type=int, default=30,
+                       help='Graph size (default: 30)')
+    args = parser.parse_args()
+
+    compare_optimization_strategies(args.n)

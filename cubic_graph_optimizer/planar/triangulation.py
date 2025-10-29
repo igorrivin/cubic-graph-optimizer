@@ -157,21 +157,66 @@ def triangulation_to_dual_cubic(G: nx.Graph) -> nx.Graph:
         Dual cubic graph
 
     Note:
-        This assumes G is a proper triangulation where each face is a triangle.
+        For a triangulation, each internal face is a triangle, so each has degree 3.
+        The dual will be cubic (3-regular).
     """
-    # Find all triangular faces
-    # For a planar graph, we can use NetworkX's cycle_basis, but it's tricky
-    # Instead, we'll use the fact that this came from a convex hull
+    # Convert to regular int labels (avoid numpy int32 issues)
+    G_relabeled = nx.convert_node_labels_to_integers(G, first_label=0)
 
-    # Actually, we need the face information which we don't have directly
-    # This is non-trivial without the planar embedding
+    # Get planar embedding
+    is_planar, embedding = nx.check_planarity(G_relabeled)
 
-    # For now, raise NotImplementedError - we can implement this later if needed
-    # or use the existing random_planar_cubic_from_sphere which already does this
-    raise NotImplementedError(
-        "Direct triangulation→dual conversion not yet implemented. "
-        "Use random_planar_cubic_from_sphere() for now."
-    )
+    if not is_planar:
+        raise ValueError("Graph is not planar!")
+
+    # Find all faces by traversing the embedding
+    faces = []
+    visited_half_edges = set()
+
+    # Traverse all faces
+    for node in embedding.nodes():
+        for neighbor in embedding.neighbors_cw_order(node):
+            half_edge = (node, neighbor)
+
+            # Skip if already visited this directed edge
+            if half_edge in visited_half_edges:
+                continue
+
+            # Traverse this face (returns list of vertices)
+            face_vertices = embedding.traverse_face(node, neighbor)
+
+            # Mark all half-edges in this face as visited
+            for i in range(len(face_vertices)):
+                v1 = face_vertices[i]
+                v2 = face_vertices[(i + 1) % len(face_vertices)]
+                visited_half_edges.add((v1, v2))
+
+            faces.append(face_vertices)
+
+    # Build dual graph
+    # Each face becomes a vertex
+    dual = nx.Graph()
+    dual.add_nodes_from(range(len(faces)))
+
+    # Build edge→faces mapping
+    edge_to_faces = {}
+    for face_idx, face_vertices in enumerate(faces):
+        # Get edges from face vertices
+        for i in range(len(face_vertices)):
+            u = face_vertices[i]
+            v = face_vertices[(i + 1) % len(face_vertices)]
+            # Undirected edge
+            edge = tuple(sorted([u, v]))
+            if edge not in edge_to_faces:
+                edge_to_faces[edge] = []
+            edge_to_faces[edge].append(face_idx)
+
+    # Add edges in dual: faces sharing an edge are adjacent
+    for edge, face_list in edge_to_faces.items():
+        if len(face_list) == 2:
+            dual.add_edge(face_list[0], face_list[1])
+
+    return dual
 
 
 def optimize_triangulation(

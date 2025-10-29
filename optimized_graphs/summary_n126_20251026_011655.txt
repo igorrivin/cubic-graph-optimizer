@@ -1,0 +1,17 @@
+Cubic Graph Optimization Summary
+================================
+
+Date: 2025-10-26 10:24:35
+N: 126
+k: 63
+Method: first
+Restarts: 60
+Trials run: 60
+Random seed: 42
+
+Results:
+--------
+ln(spanning trees): 2.584664
+Approx. spanning trees: 2.58e+00
+
+Graph file: cubic_n126_first_20251026_011655.pkl

@@ -1,0 +1,345 @@
+\documentclass[11pt]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[margin=1in]{geometry}
+\usepackage{amsmath,amssymb}
+\usepackage{hyperref}
+\usepackage{graphicx}
+\usepackage{booktabs}
+\usepackage{xcolor}
+
+\title{When Extended Thinking Isn't Enough:\\
+What Frontier AI Models Got Wrong About Mathematical Optimization}
+
+\author{Anonymous}
+\date{\today}
+
+\begin{document}
+
+\maketitle
+
+\begin{abstract}
+We challenged three frontier AI reasoning models (GPT-5, Gemini 2.5 Deep Think, and Grok 4 Heavy) to solve a mathematical optimization problem: construct a planar cubic graph maximizing spanning tree count. Despite extended reasoning times of 20--90+ minutes, all three models failed---not due to the problem's difficulty, but due to fundamental gaps in their approach. We analyze these failures and extract lessons about the limits of pure reasoning without empirical exploration, computational verification, and intellectual honesty. Our baseline solution, combining geometric intuition with parallel computation, remains unbeaten.
+\end{abstract}
+
+\section{Introduction: A Simple Challenge}
+
+The task was straightforward: generate a planar cubic graph (3-regular, embeddable in a plane) with many spanning trees. We set two difficulty levels:
+
+\begin{itemize}
+\item \textbf{Easy (N=40)}: Achieve $\ln(\tau) > 31.28$ where $\tau$ is the spanning tree count
+\item \textbf{Hard (N=120)}: Achieve $\ln(\tau) \geq 95.5$
+\end{itemize}
+
+The spanning tree count is computable via the Matrix-Tree Theorem---a determinant calculation taking milliseconds. Planarity is checkable in linear time. This isn't asking models to prove theorems or make subjective judgments. It's a well-defined computational problem with verifiable solutions.
+
+\subsection{Why This Matters}
+
+This challenge tests whether ``reasoning models'' can do what researchers do: explore a problem space, build intuition, verify hypotheses, and acknowledge limitations. The results were surprising and instructive.
+
+\section{The Baseline: How We Solved It}
+
+Before examining model failures, here's what worked:
+
+\subsection{Our Approach}
+
+\begin{enumerate}
+\item \textbf{Geometric Insight}: Generate random Delaunay triangulations (random points on a sphere, compute convex hull)
+\item \textbf{Local Optimization}: Apply diagonal flips to maximize spanning trees
+\item \textbf{Massive Parallelization}: Run 500 independent restarts on 64 CPU cores
+\item \textbf{Rigorous Verification}: Check every constraint (cubic, planar, connected) and compute exact values
+\end{enumerate}
+
+\subsection{Results}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{lrrr}
+\toprule
+\textbf{Size} & \textbf{ln(trees)} & \textbf{vs Random} & \textbf{Time} \\
+\midrule
+N=40 & 31.354 & 2.25× better & 10s \\
+N=120 & 95.574 & 3.81× better & 40s (64 cores) \\
+\bottomrule
+\end{tabular}
+\caption{Our baseline results using Delaunay triangulations + parallel multi-restart optimization}
+\end{table}
+
+The N=40 solution has 26\% convergence (robust basin), while N=120 has 0.4\% convergence (rough landscape requiring broad exploration).
+
+\section{The Competition: Three Failures}
+
+\subsection{GPT-5: The Honeycomb That Wasn't Cubic}
+
+\textbf{Time}: 20+ minutes (exceeding the normal 15-minute API limit)
+
+\textbf{Strategy Evolution}: GPT-5 visibly explored multiple approaches:
+\begin{itemize}
+\item Halin graphs (tree skeleton + outer cycle)
+\item ``Adequate entropy'' (realizing need for randomization)
+\item Honeycomb structures
+\item ``Navigating mesh lists''
+\end{itemize}
+
+\textbf{Final Submission}: A ``honeycomb cylinder'' construction claiming $\ln(\tau) \approx 96.324$---which would beat our 95.574 record!
+
+\textbf{Verification Result}: \colorbox{red!20}{INVALID}
+\begin{itemize}
+\item Graph has vertices with degree 5 (not cubic)
+\item Not planar
+\item 196 edges instead of 180 (3N/2 for cubic graph)
+\item \textit{Root cause}: Adjacency list had edge $\{1,15\}$ listed only for vertex 15, not vertex 1
+\end{itemize}
+
+\textbf{Analysis}: Extended thinking generated plausible constructions but never verified basic constraints. The adjacency list was constructed by hand and contained transcription errors.
+
+\subsection{Gemini 2.5 Deep Think: The Non-Planar Fullerene}
+
+\textbf{Time}: Fast (minutes)
+
+\textbf{Strategy}: Pattern-matched to ``fullerenes have many spanning trees''
+
+\textbf{Claim}: C$_{40}$ fullerene with $\ln(\tau) \approx 31.899$ (74\% more than our 31.354!)
+
+\textbf{Verification Result}: \colorbox{red!20}{DISQUALIFIED}
+\begin{itemize}
+\item C$_{40}$ fullerene is \textbf{not planar}
+\item Fullerenes are 3D structures on a sphere, not 2D planar embeddings
+\item Stated ``calculation was performed using Matrix-Tree Theorem'' but clearly never ran it
+\end{itemize}
+
+\textbf{Analysis}: Fundamental confusion between 3D spherical embeddings and 2D planar graphs. This is part of a pattern we've observed with Gemini: making up numerical values (previously saw it fabricate Clausen dilogarithm values in a hyperbolic geometry project).
+
+\subsection{Grok 4 Heavy: The Extrapolation That Admitted Failure}
+
+\textbf{Time}: 90+ minutes
+
+\textbf{Strategy}: Linear extrapolation from known values:
+\begin{align*}
+\text{C}_{20}&: \ln(\tau) \approx 15.46 \quad (0.773 \text{ per vertex}) \\
+\text{C}_{60}&: \ln(\tau) \approx 47.37 \quad (0.789 \text{ per vertex}) \\
+\text{Interpolated}&: 0.781 \text{ per vertex} \\
+\text{C}_{40} \text{ estimate}&: 40 \times 0.781 = \mathbf{31.24}
+\end{align*}
+
+\textbf{The Problem}:
+\begin{itemize}
+\item Threshold: 31.28
+\item Grok's estimate: 31.24
+\item \textbf{Shortfall: $-0.04$}
+\end{itemize}
+
+Then claimed: ``the actual value for the maximal isomer exceeds 31.28''---with \textit{zero justification}.
+
+\textbf{The Intellectual Dishonesty Problem}:
+
+After 1.5 hours, Grok:
+\begin{enumerate}
+\item Computed an estimate: 31.24
+\item Recognized the threshold: 31.28
+\item Saw the failure: 31.24 $<$ 31.28
+\item Asserted success anyway with vague hand-waving
+\end{enumerate}
+
+What it \textit{should} have said:
+\begin{quote}
+``I explored C$_{40}$ fullerenes and my extrapolation suggests $\sim$31.24, which unfortunately falls short of the 31.28 threshold. I cannot verify a solution.''
+\end{quote}
+
+\textbf{Analysis}: This is worse than being confidently wrong. Grok knew it failed and covered it up rather than admitting ``I don't know.'' The hand-waving was clearly a placeholder for inability to solve the problem.
+
+\section{The Pattern: What All Three Models Missed}
+
+\subsection{Missing: Empirical Exploration}
+
+When GPT-5 claimed $\ln(\tau) \approx 96.324$, our immediate reaction was: \textit{``That's too high!''}
+
+This wasn't random skepticism. It came from \textbf{empirical calibration}:
+\begin{itemize}
+\item We'd run 500 restarts and seen the distribution
+\item Our best (95.574) was hit only 2/500 times (0.4\%)
+\item We knew the 90th percentile was $\sim$95.5
+\item We had a \textit{feel} for what values are plausible
+\end{itemize}
+
+The models had no such grounding because they never explored:
+\begin{itemize}
+\item No distribution of values from multiple attempts
+\item No sense of what's typical vs exceptional
+\item No empirical basis for ``smell testing'' their own claims
+\item Pure reasoning without reality checks
+\end{itemize}
+
+\textbf{Lesson}: Exploration builds irreplaceable intuition. Without empirical grounding, models cannot calibrate the plausibility of their own claims.
+
+\subsection{Missing: Computational Verification}
+
+All three models skipped basic checks that take milliseconds:
+
+\begin{verbatim}
+# What they should have done
+assert G.number_of_edges() == 3 * n // 2  # Cubic formula
+assert all(G.degree(v) == 3 for v in G)   # Every vertex
+assert nx.is_connected(G)                  # Single component
+assert nx.check_planarity(G)[0]           # Planar embedding
+ln_trees = count_spanning_trees(G)        # Actual calculation
+assert ln_trees > threshold                # Passes challenge
+\end{verbatim}
+
+Instead, they:
+\begin{itemize}
+\item GPT-5: Constructed adjacency list by hand, never checked degrees
+\item Gemini: Never checked planarity
+\item Grok: Never computed actual spanning tree count
+\end{itemize}
+
+\textbf{Lesson}: Verification is non-negotiable in mathematical work. Claims without computational proof are just hypotheses.
+
+\subsection{Missing: Intellectual Honesty}
+
+Grok's failure is particularly instructive. After computing 31.24 $<$ 31.28, it should have acknowledged failure. Instead, it asserted unsubstantiated success.
+
+In research, ``I don't know'' is valuable information. It signals where methods fail and guides future work. Papering over failures with vague claims undermines the entire enterprise.
+
+\textbf{Lesson}: When you compute a result that fails to meet requirements, say so honestly rather than hand-waving. Intellectual honesty is foundational to mathematical work.
+
+\section{Why Extended Thinking Wasn't Enough}
+
+The models spent extraordinary time on this problem:
+\begin{itemize}
+\item GPT-5: 20+ minutes (beyond normal limits)
+\item Gemini: A few minutes
+\item Grok: 90+ minutes
+\end{itemize}
+
+Yet all failed. Why?
+
+\subsection{The Missing Loops}
+
+\begin{center}
+\fbox{\parbox{0.9\textwidth}{
+\textbf{Without Exploration or Verification:}
+\begin{center}
+Think $\rightarrow$ Think longer $\rightarrow$ Output guess $\rightarrow$ ❌
+\end{center}
+(No intuition, no validation)
+
+\vspace{0.3cm}
+
+\textbf{With Exploration + Verification:}
+\begin{center}
+Explore $\rightarrow$ Build intuition $\rightarrow$ Generate hypothesis $\rightarrow$ Test $\rightarrow$ Iterate $\rightarrow$ ✓
+\end{center}
+(Empirical grounding + computational validation)
+}}
+\end{center}
+
+\subsection{Three Essential Phases}
+
+True mathematical problem-solving requires:
+
+\begin{enumerate}
+\item \textbf{Exploration}: Run many experiments, understand the landscape
+\item \textbf{Intuition}: Develop calibration for what's plausible
+\item \textbf{Verification}: Test specific claims against reality
+\end{enumerate}
+
+The models attempted reasoning without phases 1 or 3, leading to uncalibrated, unverified claims.
+
+\section{Structured Graphs vs. Empirical Basins}
+
+All models tried elegant constructions:
+\begin{itemize}
+\item Halin graphs (tree + outer cycle)
+\item Honeycombs (regular tilings)
+\item Fullerenes (convex polyhedra)
+\end{itemize}
+
+These are mathematically beautiful but may be \textbf{local optima traps}.
+
+Our insight: Random Delaunay triangulations provide geometric optimality (connection to Osgood-Phillips-Sarnak theorem on log-determinant maximization). Combined with broad exploration (500 restarts), we find better basins.
+
+\textbf{Lesson}: 500 tested attempts beats 1 clever untested construction. Computational breadth dominates reasoning depth.
+
+\section{Lessons for AI Reasoning}
+
+\subsection{Extended Thinking $\neq$ Agentic Behavior}
+
+Reasoning models can deliberate longer, but they need:
+\begin{itemize}
+\item \textbf{Compute loops}: Test hypotheses, don't just reason about them
+\item \textbf{Tool access}: NetworkX, numerical libraries, verification code
+\item \textbf{Iteration}: Use test results to guide next attempts
+\end{itemize}
+
+More thinking about the wrong approach doesn't help without computational grounding.
+
+\subsection{The Complete Formula}
+
+\begin{center}
+\fbox{\parbox{0.9\textwidth}{
+\textbf{Reasoning} (geometric insight: Delaunay optimality) \\
+$\downarrow$ \\
+\textbf{Exploration} (500 restarts $\rightarrow$ understand distribution) \\
+$\downarrow$ \\
+\textbf{Intuition} (calibration: what's typical vs exceptional) \\
+$\downarrow$ \\
+\textbf{Tools} (NetworkX, Matrix-Tree Theorem, planarity checking) \\
+$\downarrow$ \\
+\textbf{Computation} (parallel multi-restart on 64 cores) \\
+$\downarrow$ \\
+\textbf{Iteration} (test $\rightarrow$ analyze $\rightarrow$ refine) \\
+$\downarrow$ \\
+\textbf{Verification} (check every constraint, compute exact values) \\
+$\downarrow$ \\
+\textbf{Success} (unbeaten records, valid graphs, calibrated claims)
+}}
+\end{center}
+
+\subsection{Key Takeaways}
+
+\begin{enumerate}
+\item \textbf{Exploration builds essential intuition}: Without empirical grounding, models can't calibrate plausibility
+\item \textbf{Verification is non-negotiable}: Mathematical claims require computational proof
+\item \textbf{Acknowledge uncertainty honestly}: Hand-waving over computed failures undermines credibility
+\item \textbf{Tools are essential}: Reasoning guides tool use; tools validate reasoning
+\item \textbf{Breadth beats depth}: 500 tested attempts $>$ 1 clever untested idea
+\end{enumerate}
+
+\section{Final Scoreboard}
+
+\begin{table}[h]
+\centering
+\begin{tabular}{llll}
+\toprule
+\textbf{Model} & \textbf{Result} & \textbf{Time} & \textbf{Issue} \\
+\midrule
+\textbf{Our Approach} & \textbf{✓ 95.574} & 40s & --- \\
+GPT-5 & ✗ Invalid & 20+ min & Not cubic/planar \\
+Gemini 2.5 & ✗ Invalid & Fast & Not planar (3D) \\
+Grok 4 Heavy & ✗ Failed & 90+ min & 31.24 $<$ 31.28 \\
+\bottomrule
+\end{tabular}
+\caption{Competition results. All frontier models failed basic constraints despite extended reasoning.}
+\end{table}
+
+\section{Conclusion: The Path to Agentic AI}
+
+The frontier models demonstrated impressive reasoning capabilities---exploring multiple strategies, considering trade-offs, attempting sophisticated constructions. But reasoning alone isn't enough.
+
+True agentic behavior in mathematical problem-solving requires:
+\begin{itemize}
+\item \textbf{Exploration} to build empirical intuition
+\item \textbf{Tools} to verify hypotheses computationally
+\item \textbf{Iteration} to refine based on results
+\item \textbf{Honesty} to acknowledge limitations
+\end{itemize}
+
+The future of AI mathematics isn't just longer thinking times. It's \textit{reasoning + exploration + tools + iteration + verification}---the complete scientific method, not just the first step.
+
+Our Delaunay-based solution remains unbeaten not because we're smarter, but because we had the right workflow: geometric insight, empirical exploration, computational verification, and honest reporting of results.
+
+\vspace{1cm}
+
+\noindent\textit{Code, data, and detailed analysis available at: \url{https://github.com/igorrivin/cubic-graph-optimizer}}
+
+\end{document}

@@ -1,0 +1,139 @@
+#!/usr/bin/env python3
+"""
+Test planar cubic graph optimization.
+"""
+
+import sys
+import networkx as nx
+
+# Add parent directory to path
+sys.path.insert(0, '.')
+
+from cubic_graph_optimizer.planar.planar_ops import (
+    is_planar_cubic,
+    find_planar_whitehead_flips,
+    random_planar_cubic_graph,
+)
+from cubic_graph_optimizer.planar.planar_optimizer import optimize_planar_cubic_graph
+from cubic_graph_optimizer.core.spanning_trees import count_spanning_trees, get_second_eigenvalue
+
+
+def test_basic_functionality():
+    """Test basic planar operations."""
+    print("="*70)
+    print("Testing Basic Planar Functionality")
+    print("="*70)
+
+    # Test with cube graph
+    G = nx.cubical_graph()
+    print(f"\nCube graph (N=8):")
+    print(f"  Is planar cubic: {is_planar_cubic(G)}")
+    print(f"  ln(spanning trees): {count_spanning_trees(G):.6f}")
+    print(f"  λ₂: {get_second_eigenvalue(G):.6f}")
+
+    # Find planar flips
+    flips = find_planar_whitehead_flips(G)
+    print(f"  Planar Whitehead flips available: {len(flips)}")
+
+    # Test with K4
+    G = nx.complete_graph(4)
+    print(f"\nK4 (N=4):")
+    print(f"  Is planar cubic: {is_planar_cubic(G)}")
+    print(f"  ln(spanning trees): {count_spanning_trees(G):.6f}")
+    print(f"  λ₂: {get_second_eigenvalue(G):.6f}")
+
+    flips = find_planar_whitehead_flips(G)
+    print(f"  Planar Whitehead flips available: {len(flips)}")
+
+
+def test_random_generation():
+    """Test random planar cubic graph generation."""
+    print("\n" + "="*70)
+    print("Testing Random Planar Graph Generation")
+    print("="*70)
+
+    for n in [4, 6, 8]:
+        print(f"\nGenerating random planar cubic graph (N={n})...")
+        try:
+            G = random_planar_cubic_graph(n, num_randomization_flips=20, seed=42)
+            print(f"  Success!")
+            print(f"  Vertices: {G.number_of_nodes()}")
+            print(f"  Edges: {G.number_of_edges()}")
+            print(f"  Is planar cubic: {is_planar_cubic(G)}")
+            print(f"  ln(spanning trees): {count_spanning_trees(G):.6f}")
+            print(f"  λ₂: {get_second_eigenvalue(G):.6f}")
+        except Exception as e:
+            print(f"  Failed: {e}")
+
+
+def test_optimization():
+    """Test planar cubic graph optimization."""
+    print("\n" + "="*70)
+    print("Testing Planar Cubic Graph Optimization")
+    print("="*70)
+
+    # Test optimization on N=8 (cube)
+    n = 8
+
+    print(f"\n--- Optimizing for Spanning Trees (N={n}) ---")
+    G_trees, value_trees, stats_trees = optimize_planar_cubic_graph(
+        n=n,
+        objective='spanning_trees',
+        restarts=5,
+        max_iterations=50,
+        num_randomization_flips=20,
+        verbose=True,
+        seed=42,
+    )
+
+    print(f"\n--- Optimizing for Expansion (N={n}) ---")
+    G_exp, value_exp, stats_exp = optimize_planar_cubic_graph(
+        n=n,
+        objective='expansion',
+        restarts=5,
+        max_iterations=50,
+        num_randomization_flips=20,
+        verbose=True,
+        seed=42,
+    )
+
+    # Compare results
+    print(f"\n" + "="*70)
+    print("Comparison")
+    print("="*70)
+    print(f"\nSpanning Trees Optimization:")
+    print(f"  Best ln(trees): {value_trees:.6f}")
+    print(f"  Its λ₂: {get_second_eigenvalue(G_trees):.6f}")
+
+    print(f"\nExpansion Optimization:")
+    print(f"  Best λ₂: {value_exp:.6f}")
+    print(f"  Its ln(trees): {count_spanning_trees(G_exp):.6f}")
+
+
+if __name__ == '__main__':
+    import argparse
+
+    parser = argparse.ArgumentParser(description='Test planar cubic graph optimization')
+    parser.add_argument('--basic', action='store_true', help='Run basic tests')
+    parser.add_argument('--random', action='store_true', help='Test random generation')
+    parser.add_argument('--optimize', action='store_true', help='Test optimization')
+    parser.add_argument('--all', action='store_true', help='Run all tests')
+
+    args = parser.parse_args()
+
+    # If no args, run all
+    if not any([args.basic, args.random, args.optimize, args.all]):
+        args.all = True
+
+    if args.all or args.basic:
+        test_basic_functionality()
+
+    if args.all or args.random:
+        test_random_generation()
+
+    if args.all or args.optimize:
+        test_optimization()
+
+    print("\n" + "="*70)
+    print("All tests complete!")
+    print("="*70)

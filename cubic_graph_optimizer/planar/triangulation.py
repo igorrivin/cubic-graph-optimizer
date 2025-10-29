@@ -421,3 +421,151 @@ def optimize_triangulation_multi_restart(
         print(f"{'='*70}")
 
     return best_G_tri, best_G_dual, best_value, summary
+
+
+def _single_restart_worker(args):
+    """Worker function for parallel optimization - runs one restart."""
+    restart_id, n_points, objective_func, maximize, max_iterations = args
+    import random
+
+    # Generate random starting triangulation (don't set global seed - we want randomness)
+    G_tri_start, _ = random_triangulation_from_sphere(n_points)
+    G_dual_start = triangulation_to_dual_cubic(G_tri_start)
+
+    initial_value = objective_func(G_tri_start)
+
+    # Optimize
+    G_tri_opt, final_value, stats = optimize_triangulation(
+        G_tri_start,
+        objective_func,
+        maximize=maximize,
+        max_iterations=max_iterations,
+        verbose=False,
+    )
+
+    G_dual_opt = triangulation_to_dual_cubic(G_tri_opt)
+
+    stats['restart'] = restart_id
+    stats['initial_value'] = initial_value
+
+    return (restart_id, G_tri_opt, G_dual_opt, final_value, stats)
+
+
+def optimize_triangulation_multi_restart_parallel(
+    n_points: int,
+    objective_func,
+    maximize: bool = True,
+    restarts: int = 10,
+    max_iterations: int = 200,
+    n_jobs: int = -1,
+    verbose: bool = False,
+    seed: Optional[int] = None,
+) -> Tuple[nx.Graph, nx.Graph, float, dict]:
+    """
+    Parallel multi-restart optimization using all available CPU cores.
+
+    Much faster than sequential version when restarts >> cores.
+
+    Args:
+        n_points: Number of points on sphere for triangulation
+        objective_func: Function to optimize (takes triangulation, returns float)
+        maximize: If True, maximize; if False, minimize
+        restarts: Number of random restarts
+        max_iterations: Max iterations per restart
+        n_jobs: Number of parallel jobs (-1 = all cores, -2 = all but one)
+        verbose: Print progress
+        seed: Random seed (only affects initial RNG state, not worker randomness)
+
+    Returns:
+        (best_triangulation, best_dual_cubic, best_value, stats)
+    """
+    import multiprocessing as mp
+    from multiprocessing import Pool
+    import random
+    import time
+
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+
+    # Determine number of workers
+    if n_jobs == -1:
+        n_workers = mp.cpu_count()
+    elif n_jobs == -2:
+        n_workers = max(1, mp.cpu_count() - 1)
+    else:
+        n_workers = max(1, min(n_jobs, mp.cpu_count()))
+
+    if verbose:
+        print(f"Parallel multi-restart optimization")
+        print(f"  Restarts: {restarts}")
+        print(f"  Workers: {n_workers} cores")
+        print(f"  Target size: ~{2*n_points-4} vertices (n_points={n_points})")
+        print()
+        start_time = time.time()
+
+    # Prepare worker arguments
+    worker_args = [
+        (restart, n_points, objective_func, maximize, max_iterations)
+        for restart in range(restarts)
+    ]
+
+    # Run parallel optimization
+    best_G_tri = None
+    best_G_dual = None
+    best_value = float('-inf') if maximize else float('inf')
+    all_restart_stats = []
+
+    completed = 0
+    with Pool(processes=n_workers) as pool:
+        for result in pool.imap_unordered(_single_restart_worker, worker_args):
+            restart_id, G_tri_opt, G_dual_opt, final_value, stats = result
+
+            all_restart_stats.append(stats)
+            completed += 1
+
+            # Check if this is the best so far
+            is_better = (final_value > best_value) if maximize else (final_value < best_value)
+            if is_better:
+                best_G_tri = G_tri_opt
+                best_G_dual = G_dual_opt
+                best_value = final_value
+
+                if verbose:
+                    print(f"[{completed:3d}/{restarts}] Restart {restart_id:3d}: {final_value:.6f} ⭐ NEW BEST")
+            elif verbose and completed % 10 == 0:
+                print(f"[{completed:3d}/{restarts}] Completed {completed} restarts, best={best_value:.6f}")
+
+    if verbose:
+        elapsed = time.time() - start_time
+        print()
+        print(f"Parallel optimization complete in {elapsed:.1f}s ({elapsed/60:.1f} min)")
+        print(f"  Average: {elapsed/restarts:.2f}s per restart")
+        print(f"  Speedup: ~{n_workers}× over sequential")
+
+    # Compute summary statistics
+    initial_values = [s['initial_value'] for s in all_restart_stats]
+    final_values = [s['final_value'] for s in all_restart_stats]
+
+    summary = {
+        'best_value': best_value,
+        'restarts': restarts,
+        'n_workers': n_workers,
+        'all_restart_stats': all_restart_stats,
+        'initial_values_range': (min(initial_values), max(initial_values)),
+        'final_values_range': (min(final_values), max(final_values)),
+        'avg_initial': sum(initial_values) / len(initial_values),
+        'avg_final': sum(final_values) / len(final_values),
+        'total_flips': sum(s['flips_performed'] for s in all_restart_stats),
+    }
+
+    if verbose:
+        print()
+        print(f"Statistics:")
+        print(f"  Best value: {best_value:.6f}")
+        print(f"  Initial range: [{summary['initial_values_range'][0]:.3f}, {summary['initial_values_range'][1]:.3f}]")
+        print(f"  Final range: [{summary['final_values_range'][0]:.3f}, {summary['final_values_range'][1]:.3f}]")
+        print(f"  Average improvement: {summary['avg_final'] - summary['avg_initial']:+.3f}")
+        print(f"  Total flips: {summary['total_flips']}")
+
+    return best_G_tri, best_G_dual, best_value, summary

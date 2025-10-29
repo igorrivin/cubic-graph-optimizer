@@ -77,28 +77,44 @@ assert all(G.degree(v) == 3 for v in G)  # Would have caught this instantly
 
 ---
 
-## Gemini 2.5 Deep Think: The Non-Planar Fullerene
+## Gemini 2.5 Deep Think: The Impossible Fullerene
 
 **Thinking Time**: Fast (a few minutes)
 
 **Strategy**: Pattern-matched to "fullerenes have lots of spanning trees"
 
-**Claim**: C₄₀ fullerene with **ln(trees) ≈ 31.899** (that's 74% more than our 31.354!)
+**Claim**: "C₄₀ fullerene" with **ln(trees) ≈ 31.899** (that's 74% more than our 31.354!)
 
 Wow, if true, that would crush our baseline. Let's check...
 
 ### Verification: ❌ DISQUALIFIED
 
 ```python
-# The problem:
-- C₄₀ fullerene is NOT PLANAR
-- It's a 3D structure on a sphere, not a 2D planar graph
-- Fundamental confusion: 3D spherical ≠ 2D planar
+# What Gemini claimed:
+- "C₄₀ fullerene" (convex polyhedron)
+- 40 vertices, 60 edges
+- 12 pentagons + 10 hexagons (correct counts)
+
+# What we found:
+- ✓ Cubic (3-regular)
+- ✓ Connected
+- ❌ NOT PLANAR
+
+# The critical issue:
+By Steinitz's theorem: A graph represents a convex polyhedron
+if and only if it is PLANAR and 3-connected.
+
+Gemini's graph is NON-PLANAR → not a valid convex polyhedron
+→ NOT ACTUALLY A FULLERENE AT ALL
 ```
 
-Gemini stated "the calculation was performed using the Matrix-Tree Theorem" but clearly never ran it. This is part of a pattern we've observed: in a different project on hyperbolic geometry, Gemini confidently made up values for the Clausen dilogarithm—a well-defined function anyone can compute.
+**What went wrong**: Gemini constructed a graph with the right face counts (12 pentagons, 10 hexagons) but with topologically impossible edge connectivity. It's like drawing an Escher "impossible staircase"—the numbers add up, but the structure can't exist in 3D space.
 
-**The Lesson**: Confident numerical claims without actual computation. Extended thinking doesn't help if you're reasoning about the wrong structure.
+By Kuratowski's theorem, the non-planar graph contains K₅ or K₃,₃ as a minor, making it fundamentally incompatible with any convex polyhedron.
+
+Gemini stated "the calculation was performed using the Matrix-Tree Theorem" but never verified planarity. This is part of a pattern: in a different project on hyperbolic geometry, Gemini confidently fabricated values for the Clausen dilogarithm.
+
+**The Lesson**: Gemini didn't just confuse 3D vs 2D—it constructed a topologically impossible structure while claiming it was a valid fullerene. Extended thinking doesn't help when you skip basic constraint checking.
 
 ---
 
@@ -224,9 +240,9 @@ The models attempted reasoning without phases 1 or 3. No amount of extended thin
 All three models reached for elegant mathematical constructions:
 - Halin graphs (tree + outer cycle)
 - Honeycombs (regular tilings)
-- Fullerenes (convex polyhedra)
+- "Fullerenes" (claimed by Gemini, but topologically impossible)
 
-These are beautiful structures. They make intuitive sense. They're the kind of thing you'd find in a textbook.
+These are beautiful structures in theory. They make intuitive sense. They're the kind of thing you'd find in a textbook.
 
 **But they're likely local optima.**
 

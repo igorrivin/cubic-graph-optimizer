@@ -92,22 +92,33 @@ The N=40 solution has 26\% convergence (robust basin), while N=120 has 0.4\% con
 
 \textbf{Analysis}: Extended thinking generated plausible constructions but never verified basic constraints. The adjacency list was constructed by hand and contained transcription errors.
 
-\subsection{Gemini 2.5 Deep Think: The Non-Planar Fullerene}
+\subsection{Gemini 2.5 Deep Think: The Impossible Fullerene}
 
 \textbf{Time}: Fast (minutes)
 
 \textbf{Strategy}: Pattern-matched to ``fullerenes have many spanning trees''
 
-\textbf{Claim}: C$_{40}$ fullerene with $\ln(\tau) \approx 31.899$ (74\% more than our 31.354!)
+\textbf{Claim}: ``C$_{40}$ fullerene'' with $\ln(\tau) \approx 31.899$ (74\% more than our 31.354!)
 
 \textbf{Verification Result}: \colorbox{red!20}{DISQUALIFIED}
+
+What Gemini claimed:
 \begin{itemize}
-\item C$_{40}$ fullerene is \textbf{not planar}
-\item Fullerenes are 3D structures on a sphere, not 2D planar embeddings
-\item Stated ``calculation was performed using Matrix-Tree Theorem'' but clearly never ran it
+\item ``C$_{40}$ fullerene'' (convex polyhedron)
+\item 40 vertices, 60 edges
+\item 12 pentagons + 10 hexagons (correct face counts)
 \end{itemize}
 
-\textbf{Analysis}: Fundamental confusion between 3D spherical embeddings and 2D planar graphs. This is part of a pattern we've observed with Gemini: making up numerical values (previously saw it fabricate Clausen dilogarithm values in a hyperbolic geometry project).
+What we found:
+\begin{itemize}
+\item ✓ Cubic (3-regular)
+\item ✓ Connected
+\item ❌ \textbf{NOT PLANAR}
+\end{itemize}
+
+\textbf{The critical issue}: By Steinitz's theorem, a graph represents a convex polyhedron if and only if it is \textit{planar} and 3-connected. Gemini's graph is non-planar $\rightarrow$ not a valid convex polyhedron $\rightarrow$ \textbf{not actually a fullerene}.
+
+\textbf{Analysis}: Gemini constructed a graph with correct face counts (12 pentagons, 10 hexagons) but topologically impossible edge connectivity. By Kuratowski's theorem, the non-planar graph contains $K_5$ or $K_{3,3}$ as a minor, incompatible with any convex polyhedron. It's like drawing an Escher impossible staircase---the numbers add up, but the structure can't exist in 3D space. This pattern includes fabricating Clausen dilogarithm values in other projects.
 
 \subsection{Grok 4 Heavy: The Extrapolation That Admitted Failure}
 

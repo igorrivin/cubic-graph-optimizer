@@ -305,3 +305,119 @@ def optimize_triangulation(
         print(f"  Flips: {stats['flips_performed']}")
 
     return G, current_value, stats
+
+
+def optimize_triangulation_multi_restart(
+    n_points: int,
+    objective_func,
+    maximize: bool = True,
+    restarts: int = 10,
+    max_iterations: int = 200,
+    verbose: bool = False,
+    seed: Optional[int] = None,
+) -> Tuple[nx.Graph, nx.Graph, float, dict]:
+    """
+    Optimize a triangulation using multiple random restarts.
+
+    Generates multiple random triangulations and optimizes each one,
+    returning the best result found.
+
+    Args:
+        n_points: Number of points on sphere for triangulation
+        objective_func: Function to optimize (takes triangulation, returns float)
+        maximize: If True, maximize; if False, minimize
+        restarts: Number of random restarts
+        max_iterations: Max iterations per restart
+        verbose: Print progress
+        seed: Random seed for reproducibility
+
+    Returns:
+        (best_triangulation, best_dual_cubic, best_value, stats)
+    """
+    import random
+
+    if seed is not None:
+        random.seed(seed)
+        np.random.seed(seed)
+
+    best_G_tri = None
+    best_G_dual = None
+    best_value = float('-inf') if maximize else float('inf')
+    all_restart_stats = []
+
+    if verbose:
+        print(f"Multi-restart optimization with {restarts} restarts")
+        print(f"Target size: ~{2*n_points-4} vertices (n_points={n_points})")
+        print()
+
+    for restart in range(restarts):
+        if verbose:
+            print(f"--- Restart {restart + 1}/{restarts} ---")
+
+        # Generate random starting triangulation
+        G_tri_start, _ = random_triangulation_from_sphere(n_points)
+        G_dual_start = triangulation_to_dual_cubic(G_tri_start)
+
+        initial_value = objective_func(G_tri_start)
+
+        if verbose:
+            print(f"  Initial value: {initial_value:.6f}")
+
+        # Optimize
+        G_tri_opt, final_value, stats = optimize_triangulation(
+            G_tri_start,
+            objective_func,
+            maximize=maximize,
+            max_iterations=max_iterations,
+            verbose=False,
+        )
+
+        G_dual_opt = triangulation_to_dual_cubic(G_tri_opt)
+
+        stats['restart'] = restart
+        stats['initial_value'] = initial_value
+        all_restart_stats.append(stats)
+
+        if verbose:
+            improvement = final_value - initial_value if maximize else initial_value - final_value
+            print(f"  Final value: {final_value:.6f} (Δ={improvement:+.6f}, flips={stats['flips_performed']})")
+
+        # Check if this is the best so far
+        is_better = (final_value > best_value) if maximize else (final_value < best_value)
+        if is_better:
+            best_G_tri = G_tri_opt
+            best_G_dual = G_dual_opt
+            best_value = final_value
+
+            if verbose:
+                print(f"  ⭐ New best!")
+
+        if verbose:
+            print()
+
+    # Compute summary statistics
+    initial_values = [s['initial_value'] for s in all_restart_stats]
+    final_values = [s['final_value'] for s in all_restart_stats]
+
+    summary = {
+        'best_value': best_value,
+        'restarts': restarts,
+        'all_restart_stats': all_restart_stats,
+        'initial_values_range': (min(initial_values), max(initial_values)),
+        'final_values_range': (min(final_values), max(final_values)),
+        'avg_initial': sum(initial_values) / len(initial_values),
+        'avg_final': sum(final_values) / len(final_values),
+        'total_flips': sum(s['flips_performed'] for s in all_restart_stats),
+    }
+
+    if verbose:
+        print(f"{'='*70}")
+        print(f"Multi-restart optimization complete")
+        print(f"  Best value: {best_value:.6f}")
+        print(f"  Initial range: [{summary['initial_values_range'][0]:.3f}, {summary['initial_values_range'][1]:.3f}]")
+        print(f"  Final range: [{summary['final_values_range'][0]:.3f}, {summary['final_values_range'][1]:.3f}]")
+        print(f"  Average improvement: {summary['avg_final'] - summary['avg_initial']:+.3f}")
+        print(f"  Total flips: {summary['total_flips']}")
+        print(f"{'='*70}")
+
+    return best_G_tri, best_G_dual, best_value, summary

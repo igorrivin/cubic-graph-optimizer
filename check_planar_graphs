@@ -1,0 +1,249 @@
+#!/usr/bin/env python3
+"""
+Check planar cubic graphs for optimality.
+
+Validates that graphs are:
+1. Cubic (3-regular)
+2. Planar
+3. Have spanning trees above baseline
+4. Have λ₂ below baseline (for expansion)
+
+Usage:
+    check_planar_graphs --baseline-trees 30.0 --baseline-lambda2 2.75 test_planar_graphs.json
+"""
+
+import argparse
+import json
+import sys
+import networkx as nx
+import numpy as np
+
+
+def count_spanning_trees(G):
+    """Count spanning trees using Kirchhoff's theorem. Returns ln(count)."""
+    if not nx.is_connected(G):
+        return float('-inf')
+
+    L = nx.laplacian_matrix(G).toarray()
+    L_reduced = L[:-1, :-1]
+    sign, logdet = np.linalg.slogdet(L_reduced)
+
+    if sign <= 0:
+        return float('-inf')
+
+    return logdet
+
+
+def get_second_eigenvalue(G):
+    """Get second-largest eigenvalue of adjacency matrix."""
+    if not nx.is_connected(G):
+        return float('inf')
+
+    eigenvalues = nx.adjacency_spectrum(G).real
+    eigenvalues_sorted = sorted(eigenvalues, reverse=True)
+    return eigenvalues_sorted[1]
+
+
+def is_planar_cubic(G):
+    """Check if graph is both planar and cubic."""
+    # Check cubic
+    if not all(d == 3 for _, d in G.degree()):
+        return False, "Not cubic (not all vertices have degree 3)"
+
+    # Check planar
+    if not nx.is_planar(G):
+        return False, "Not planar"
+
+    return True, "OK"
+
+
+def load_graphs_from_json(json_file):
+    """Load graphs from JSON file."""
+    with open(json_file, 'r') as f:
+        data = json.load(f)
+
+    graphs = []
+    for item in data:
+        if isinstance(item, dict):
+            adj_list = item.get('adjacency_list', item.get('graph'))
+            name = item.get('name', f'graph_{len(graphs)}')
+            expected = item.get('expected', None)
+        else:
+            adj_list = item
+            name = f'graph_{len(graphs)}'
+            expected = None
+
+        # Convert adjacency list to graph
+        G = nx.Graph()
+        for node, neighbors in enumerate(adj_list):
+            for neighbor in neighbors:
+                if node < neighbor:
+                    G.add_edge(node, neighbor)
+
+        graphs.append((name, G, expected))
+
+    return graphs
+
+
+def check_graph(G, baseline_trees=None, baseline_lambda2=None):
+    """
+    Check if a planar cubic graph meets quality thresholds.
+
+    Returns (passed, details_dict)
+    """
+    details = {}
+
+    # Check planar cubic
+    is_valid, msg = is_planar_cubic(G)
+    details['is_planar_cubic'] = is_valid
+    details['planar_cubic_message'] = msg
+
+    if not is_valid:
+        return False, details
+
+    # Check spanning trees
+    trees = count_spanning_trees(G)
+    details['ln_trees'] = trees
+
+    if baseline_trees is not None:
+        trees_passes = trees >= baseline_trees
+        details['trees_passes'] = trees_passes
+    else:
+        trees_passes = None
+
+    # Check λ₂
+    lambda2 = get_second_eigenvalue(G)
+    details['lambda2'] = lambda2
+
+    if baseline_lambda2 is not None:
+        lambda2_passes = lambda2 <= baseline_lambda2
+        details['lambda2_passes'] = lambda2_passes
+    else:
+        lambda2_passes = None
+
+    # Overall pass
+    if baseline_trees is not None and baseline_lambda2 is not None:
+        passed = trees_passes and lambda2_passes
+    elif baseline_trees is not None:
+        passed = trees_passes
+    elif baseline_lambda2 is not None:
+        passed = lambda2_passes
+    else:
+        passed = True  # No thresholds specified
+
+    return passed, details
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description='Check planar cubic graphs for optimality',
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Check spanning trees only
+  check_planar_graphs --baseline-trees 30.0 test_planar.json
+
+  # Check both objectives
+  check_planar_graphs --baseline-trees 30.0 --baseline-lambda2 2.75 test_planar.json
+
+  # Verbose output
+  check_planar_graphs --baseline-trees 30.0 --baseline-lambda2 2.75 test_planar.json --verbose
+        """
+    )
+
+    parser.add_argument('json_file', help='JSON file with test graphs')
+    parser.add_argument('--baseline-trees', type=float, default=None,
+                       help='Baseline ln(spanning trees) threshold')
+    parser.add_argument('--baseline-lambda2', type=float, default=None,
+                       help='Baseline λ₂ threshold (graphs must be ≤ this)')
+    parser.add_argument('--output', help='Output results to JSON file')
+    parser.add_argument('--verbose', action='store_true', help='Verbose output')
+
+    args = parser.parse_args()
+
+    # Load graphs
+    try:
+        graphs = load_graphs_from_json(args.json_file)
+    except Exception as e:
+        print(f"Error loading graphs: {e}", file=sys.stderr)
+        return 1
+
+    if args.verbose:
+        print(f"Loaded {len(graphs)} graphs from {args.json_file}")
+        if args.baseline_trees:
+            print(f"Baseline ln(trees): {args.baseline_trees}")
+        if args.baseline_lambda2:
+            print(f"Baseline λ₂: {args.baseline_lambda2}")
+        print()
+
+    # Check each graph
+    results = []
+    all_passed = True
+
+    for name, G, expected in graphs:
+        passed, details = check_graph(G, args.baseline_trees, args.baseline_lambda2)
+
+        result = {
+            'name': name,
+            'passed': passed,
+            'expected': expected,
+            'details': details
+        }
+
+        results.append(result)
+
+        # Check if result matches expectation
+        if expected is not None and passed != expected:
+            all_passed = False
+            status = "❌ UNEXPECTED"
+        elif passed:
+            status = "✓ PASS"
+        else:
+            status = "✗ FAIL"
+
+        if args.verbose or not passed or (expected is not None and passed != expected):
+            print(f"{status} {name}")
+            print(f"  N={G.number_of_nodes()}, E={G.number_of_edges()}")
+            print(f"  Planar cubic: {details['is_planar_cubic']}")
+            if details['is_planar_cubic']:
+                print(f"  ln(trees): {details['ln_trees']:.6f}", end="")
+                if args.baseline_trees:
+                    print(f" ({'✓' if details['trees_passes'] else '✗'} baseline {args.baseline_trees})", end="")
+                print()
+                print(f"  λ₂: {details['lambda2']:.6f}", end="")
+                if args.baseline_lambda2:
+                    print(f" ({'✓' if details['lambda2_passes'] else '✗'} baseline {args.baseline_lambda2})", end="")
+                print()
+            else:
+                print(f"  Error: {details['planar_cubic_message']}")
+            if expected is not None:
+                print(f"  Expected: {'PASS' if expected else 'FAIL'}, Got: {'PASS' if passed else 'FAIL'}")
+            print()
+
+    # Summary
+    num_passed = sum(1 for r in results if r['passed'])
+    num_failed = len(results) - num_passed
+
+    print(f"{'='*70}")
+    print(f"Summary: {num_passed}/{len(results)} passed, {num_failed} failed")
+
+    # Check expectations
+    if any(r['expected'] is not None for r in results):
+        mismatches = [r for r in results if r['expected'] is not None and r['passed'] != r['expected']]
+        if mismatches:
+            print(f"❌ {len(mismatches)} graphs did not match expectations!")
+            all_passed = False
+        else:
+            print(f"✓ All graphs matched expectations")
+
+    # Save output
+    if args.output:
+        with open(args.output, 'w') as f:
+            json.dump(results, f, indent=2)
+        print(f"Results saved to {args.output}")
+
+    return 0 if all_passed else 1
+
+
+if __name__ == '__main__':
+    sys.exit(main())

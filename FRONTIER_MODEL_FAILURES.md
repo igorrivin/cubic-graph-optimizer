@@ -278,4 +278,52 @@ If you use this as a cautionary tale about frontier model limitations:
 
 ---
 
+## The Ultimate Irony: We Chose the Laziest Approach
+
+**Why did we use "random uniform points on sphere → Delaunay → dual"?**
+
+Not because it was theoretically optimal.
+Not because we found it in the literature.
+Not because we did a careful analysis of construction methods.
+
+**We chose it because it was the simplest to implement.**
+
+We could have used:
+- `plantri` (specialized planar graph generator)
+- `CaGe` (chemistry/fullerene tool)
+- Direct combinatorial construction
+- Systematic isomer enumeration
+
+But those required:
+- Installing external tools
+- Learning complex APIs
+- Understanding specialized formats
+- More code to write
+
+**Random points on sphere?**
+```python
+points = np.random.randn(n, 3)
+points /= np.linalg.norm(points, axis=1, keepdims=True)
+hull = ConvexHull(points)
+# Done! Have triangulation
+```
+
+**5 lines of code. No external dependencies. Trivial to implement.**
+
+And it casually beat three frontier models that were trying to be clever.
+
+This is the Platonic ideal of "worse is better":
+- Simpler implementation
+- Faster to run
+- Better results
+- No special knowledge required
+
+The most sophisticated AIs in the world declared the task impossible while applying complex fullerene theory. Meanwhile, we threw random points on a sphere because we were too lazy to install `plantri`.
+
+**Engineering lesson**: Sometimes the best solution is the one that requires the least thought.
+
+---
+
 *"The best solution is usually the one you didn't overthink."*
+
+*"Or in this case, the one you were too lazy to complicate."*

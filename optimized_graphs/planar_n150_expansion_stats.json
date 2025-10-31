@@ -1,0 +1,10 @@
+{
+  "n_target": 150,
+  "n_actual": 150,
+  "ln_trees": 118.449204012349,
+  "lambda2": 2.9190725939664945,
+  "is_planar": true,
+  "objective": "expansion",
+  "restarts": 20,
+  "best_value": 2.9190725939664945
+}

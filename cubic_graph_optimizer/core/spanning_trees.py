@@ -54,11 +54,10 @@ def get_second_eigenvalue(G):
     if not nx.is_connected(G):
         return float('inf')
 
-    # Compute eigenvalues of adjacency matrix
-    eigenvalues = nx.adjacency_spectrum(G).real
+    # Get adjacency matrix and compute eigenvalues
+    # Use eigvalsh for symmetric matrices (much faster than eig for complex matrices)
+    A = nx.adjacency_matrix(G).toarray()
+    eigenvalues = np.linalg.eigvalsh(A)  # Returns sorted ascending
 
-    # Sort in descending order
-    eigenvalues_sorted = sorted(eigenvalues, reverse=True)
-
-    # Return second-largest (index 1)
-    return eigenvalues_sorted[1]
+    # Return second-largest (second from end)
+    return eigenvalues[-2]

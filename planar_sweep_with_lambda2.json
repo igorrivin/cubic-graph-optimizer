@@ -1,0 +1,794 @@
+[
+  {
+    "N": 4,
+    "n_points": 4,
+    "ln_trees": 2.7725887222397816,
+    "lambda2_original": -0.9999999999999997,
+    "lambda2_computed": -0.9999999999999997,
+    "file": "planar_n004_result.json"
+  },
+  {
+    "N": 6,
+    "n_points": 5,
+    "ln_trees": 4.317488113536311,
+    "lambda2_original": 0.9999999999999996,
+    "lambda2_computed": 0.9999999999999996,
+    "file": "planar_n006_result.json"
+  },
+  {
+    "N": 8,
+    "n_points": 6,
+    "ln_trees": 5.950642552587728,
+    "lambda2_original": 1.0000000000000002,
+    "lambda2_computed": 1.0000000000000002,
+    "file": "planar_n008_result.json"
+  },
+  {
+    "N": 10,
+    "n_points": 7,
+    "ln_trees": 7.427738840532894,
+    "lambda2_original": 1.9032119259115525,
+    "lambda2_computed": 1.9032119259115525,
+    "file": "planar_n010_result.json"
+  },
+  {
+    "N": 12,
+    "n_points": 8,
+    "ln_trees": 9.064157861798103,
+    "lambda2_original": 1.9999999999999993,
+    "lambda2_computed": 1.9999999999999993,
+    "file": "planar_n012_result.json"
+  },
+  {
+    "N": 14,
+    "n_points": 9,
+    "ln_trees": 10.653393066914685,
+    "lambda2_original": 2.0000000000000013,
+    "lambda2_computed": 2.0000000000000013,
+    "file": "planar_n014_result.json"
+  },
+  {
+    "N": 16,
+    "n_points": 10,
+    "ln_trees": 12.242250271648764,
+    "lambda2_original": 2.2360679774997902,
+    "lambda2_computed": 2.2360679774997902,
+    "file": "planar_n016_result.json"
+  },
+  {
+    "N": 18,
+    "n_points": 11,
+    "ln_trees": 13.811309746899669,
+    "lambda2_original": 2.3300587395679826,
+    "lambda2_computed": 2.3300587395679826,
+    "file": "planar_n018_result.json"
+  },
+  {
+    "N": 20,
+    "n_points": 12,
+    "ln_trees": 15.46108751701425,
+    "lambda2_original": 2.2360679774997902,
+    "lambda2_computed": 2.2360679774997902,
+    "file": "planar_n020_result.json"
+  },
+  {
+    "N": 22,
+    "n_points": 13,
+    "ln_trees": 17.001560335353386,
+    "lambda2_original": 2.408636968311783,
+    "lambda2_computed": 2.408636968311783,
+    "file": "planar_n022_result.json"
+  },
+  {
+    "N": 24,
+    "n_points": 14,
+    "ln_trees": 18.617321785800534,
+    "lambda2_original": 2.4309078368330668,
+    "lambda2_computed": 2.4309078368330668,
+    "file": "planar_n024_result.json"
+  },
+  {
+    "N": 26,
+    "n_points": 15,
+    "ln_trees": 20.20297960239481,
+    "lambda2_original": 2.51413692933529,
+    "lambda2_computed": 2.51413692933529,
+    "file": "planar_n026_result.json"
+  },
+  {
+    "N": 28,
+    "n_points": 16,
+    "ln_trees": 21.79546953490882,
+    "lambda2_original": 2.472833908995269,
+    "lambda2_computed": 2.472833908995269,
+    "file": "planar_n028_result.json"
+  },
+  {
+    "N": 30,
+    "n_points": 17,
+    "ln_trees": 23.23038658840139,
+    "lambda2_original": 2.5968831757443125,
+    "lambda2_computed": 2.5968831757443125,
+    "file": "planar_n030_result.json"
+  },
+  {
+    "N": 32,
+    "n_points": 18,
+    "ln_trees": 24.81541986069002,
+    "lambda2_original": 2.637313952306622,
+    "lambda2_computed": 2.637313952306622,
+    "file": "planar_n032_result.json"
+  },
+  {
+    "N": 34,
+    "n_points": 19,
+    "ln_trees": 26.407554904033088,
+    "lambda2_original": 2.6725084398605157,
+    "lambda2_computed": 2.6725084398605157,
+    "file": "planar_n034_result.json"
+  },
+  {
+    "N": 36,
+    "n_points": 20,
+    "ln_trees": 28.16310931383187,
+    "lambda2_original": 2.60839660411386,
+    "lambda2_computed": 2.60839660411386,
+    "file": "planar_n036_result.json"
+  },
+  {
+    "N": 38,
+    "n_points": 21,
+    "ln_trees": 29.75752783147717,
+    "lambda2_original": 2.645794100178595,
+    "lambda2_computed": 2.645794100178595,
+    "file": "planar_n038_result.json"
+  },
+  {
+    "N": 40,
+    "n_points": 22,
+    "ln_trees": 31.35442106876613,
+    "lambda2_original": 2.663840251096879,
+    "lambda2_computed": 2.663840251096879,
+    "file": "planar_n040_result.json"
+  },
+  {
+    "N": 42,
+    "n_points": 23,
+    "ln_trees": 32.95174084769396,
+    "lambda2_original": 2.6711474408560574,
+    "lambda2_computed": 2.6711474408560574,
+    "file": "planar_n042_result.json"
+  },
+  {
+    "N": 44,
+    "n_points": 24,
+    "ln_trees": 34.551003953677075,
+    "lambda2_original": 2.6935252022278644,
+    "lambda2_computed": 2.6935252022278644,
+    "file": "planar_n044_result.json"
+  },
+  {
+    "N": 46,
+    "n_points": 25,
+    "ln_trees": 36.1483536511984,
+    "lambda2_original": 2.702453768967444,
+    "lambda2_computed": 2.702453768967444,
+    "file": "planar_n046_result.json"
+  },
+  {
+    "N": 48,
+    "n_points": 26,
+    "ln_trees": 37.750204047361514,
+    "lambda2_original": 2.710596886230557,
+    "lambda2_computed": 2.710596886230557,
+    "file": "planar_n048_result.json"
+  },
+  {
+    "N": 50,
+    "n_points": 27,
+    "ln_trees": 39.354071238475456,
+    "lambda2_original": 2.722589137518906,
+    "lambda2_computed": 2.722589137518906,
+    "file": "planar_n050_result.json"
+  },
+  {
+    "N": 52,
+    "n_points": 28,
+    "ln_trees": 40.953495783859445,
+    "lambda2_original": 2.720099684446508,
+    "lambda2_computed": 2.720099684446508,
+    "file": "planar_n052_result.json"
+  },
+  {
+    "N": 54,
+    "n_points": 29,
+    "ln_trees": 42.553720826226424,
+    "lambda2_original": 2.7668842726580323,
+    "lambda2_computed": 2.7668842726580323,
+    "file": "planar_n054_result.json"
+  },
+  {
+    "N": 56,
+    "n_points": 30,
+    "ln_trees": 44.15708668949449,
+    "lambda2_original": 2.766032412407776,
+    "lambda2_computed": 2.766032412407776,
+    "file": "planar_n056_result.json"
+  },
+  {
+    "N": 58,
+    "n_points": 31,
+    "ln_trees": 45.763492558470595,
+    "lambda2_original": 2.7549486303183963,
+    "lambda2_computed": 2.7549486303183963,
+    "file": "planar_n058_result.json"
+  },
+  {
+    "N": 60,
+    "n_points": 32,
+    "ln_trees": 47.37423570746458,
+    "lambda2_original": 2.75659825386007,
+    "lambda2_computed": 2.75659825386007,
+    "file": "planar_n060_result.json"
+  },
+  {
+    "N": 62,
+    "n_points": 33,
+    "ln_trees": 48.96633378767033,
+    "lambda2_original": 2.781773284197274,
+    "lambda2_computed": 2.781773284197274,
+    "file": "planar_n062_result.json"
+  },
+  {
+    "N": 64,
+    "n_points": 34,
+    "ln_trees": 50.57192943266385,
+    "lambda2_original": 2.792712269129939,
+    "lambda2_computed": 2.792712269129939,
+    "file": "planar_n064_result.json"
+  },
+  {
+    "N": 66,
+    "n_points": 35,
+    "ln_trees": 52.17478119485958,
+    "lambda2_original": 2.804122397640846,
+    "lambda2_computed": 2.804122397640846,
+    "file": "planar_n066_result.json"
+  },
+  {
+    "N": 68,
+    "n_points": 36,
+    "ln_trees": 53.7803054753889,
+    "lambda2_original": 2.805792551627989,
+    "lambda2_computed": 2.805792551627989,
+    "file": "planar_n068_result.json"
+  },
+  {
+    "N": 70,
+    "n_points": 37,
+    "ln_trees": 55.39003495928925,
+    "lambda2_original": 2.8136065026483217,
+    "lambda2_computed": 2.8136065026483217,
+    "file": "planar_n070_result.json"
+  },
+  {
+    "N": 72,
+    "n_points": 38,
+    "ln_trees": 56.98924698605813,
+    "lambda2_original": 2.8096946101970235,
+    "lambda2_computed": 2.8096946101970235,
+    "file": "planar_n072_result.json"
+  },
+  {
+    "N": 74,
+    "n_points": 39,
+    "ln_trees": 58.60180950951751,
+    "lambda2_original": 2.807725776328605,
+    "lambda2_computed": 2.807725776328605,
+    "file": "planar_n074_result.json"
+  },
+  {
+    "N": 76,
+    "n_points": 40,
+    "ln_trees": 60.022195729852406,
+    "lambda2_original": 2.830664919634346,
+    "lambda2_computed": 2.830664919634346,
+    "file": "planar_n076_result.json"
+  },
+  {
+    "N": 78,
+    "n_points": 41,
+    "ln_trees": 61.80638264988,
+    "lambda2_original": 2.841221008443318,
+    "lambda2_computed": 2.841221008443318,
+    "file": "planar_n078_result.json"
+  },
+  {
+    "N": 80,
+    "n_points": 42,
+    "ln_trees": 63.42117434798035,
+    "lambda2_original": 2.8181550014637216,
+    "lambda2_computed": 2.8181550014637216,
+    "file": "planar_n080_result.json"
+  },
+  {
+    "N": 82,
+    "n_points": 43,
+    "ln_trees": 65.02658083666873,
+    "lambda2_original": 2.825954626467979,
+    "lambda2_computed": 2.825954626467979,
+    "file": "planar_n082_result.json"
+  },
+  {
+    "N": 84,
+    "n_points": 44,
+    "ln_trees": 66.63227136499363,
+    "lambda2_original": 2.8279283190149584,
+    "lambda2_computed": 2.8279283190149584,
+    "file": "planar_n084_result.json"
+  },
+  {
+    "N": 86,
+    "n_points": 45,
+    "ln_trees": 68.23763755777352,
+    "lambda2_original": 2.838312950794208,
+    "lambda2_computed": 2.838312950794208,
+    "file": "planar_n086_result.json"
+  },
+  {
+    "N": 88,
+    "n_points": 46,
+    "ln_trees": 69.84310680009138,
+    "lambda2_original": 2.843636948744176,
+    "lambda2_computed": 2.843636948744176,
+    "file": "planar_n088_result.json"
+  },
+  {
+    "N": 90,
+    "n_points": 47,
+    "ln_trees": 71.45105193686834,
+    "lambda2_original": 2.8480900826287683,
+    "lambda2_computed": 2.8480900826287683,
+    "file": "planar_n090_result.json"
+  },
+  {
+    "N": 92,
+    "n_points": 48,
+    "ln_trees": 73.05490185743481,
+    "lambda2_original": 2.8586838400636303,
+    "lambda2_computed": 2.8586838400636303,
+    "file": "planar_n092_result.json"
+  },
+  {
+    "N": 94,
+    "n_points": 49,
+    "ln_trees": 74.66538708764976,
+    "lambda2_original": 2.8554593182930628,
+    "lambda2_computed": 2.8554593182930628,
+    "file": "planar_n094_result.json"
+  },
+  {
+    "N": 96,
+    "n_points": 50,
+    "ln_trees": 76.27237822560235,
+    "lambda2_original": 2.8588546549797287,
+    "lambda2_computed": 2.8588546549797287,
+    "file": "planar_n096_result.json"
+  },
+  {
+    "N": 98,
+    "n_points": 51,
+    "ln_trees": 77.87877954301682,
+    "lambda2_original": 2.8665956591408808,
+    "lambda2_computed": 2.8665956591408808,
+    "file": "planar_n098_result.json"
+  },
+  {
+    "N": 100,
+    "n_points": 52,
+    "ln_trees": 79.48685674298363,
+    "lambda2_original": 2.862773660485303,
+    "lambda2_computed": 2.862773660485303,
+    "file": "planar_n100_result.json"
+  },
+  {
+    "N": 102,
+    "n_points": 53,
+    "ln_trees": 81.0962971218335,
+    "lambda2_original": 2.8629339767532525,
+    "lambda2_computed": 2.8629339767532525,
+    "file": "planar_n102_result.json"
+  },
+  {
+    "N": 104,
+    "n_points": 54,
+    "ln_trees": 82.70380726032329,
+    "lambda2_original": 2.869641997895801,
+    "lambda2_computed": 2.869641997895801,
+    "file": "planar_n104_result.json"
+  },
+  {
+    "N": 106,
+    "n_points": 55,
+    "ln_trees": 84.31157996200027,
+    "lambda2_original": 2.8743499516977997,
+    "lambda2_computed": 2.8743499516977997,
+    "file": "planar_n106_result.json"
+  },
+  {
+    "N": 108,
+    "n_points": 56,
+    "ln_trees": 85.91909084283134,
+    "lambda2_original": 2.8785089892654327,
+    "lambda2_computed": 2.8785089892654327,
+    "file": "planar_n108_result.json"
+  },
+  {
+    "N": 110,
+    "n_points": 57,
+    "ln_trees": 87.52690493245697,
+    "lambda2_original": 2.8782047008136646,
+    "lambda2_computed": 2.8782047008136646,
+    "file": "planar_n110_result.json"
+  },
+  {
+    "N": 112,
+    "n_points": 58,
+    "ln_trees": 89.13588837240691,
+    "lambda2_original": 2.883163521176674,
+    "lambda2_computed": 2.883163521176674,
+    "file": "planar_n112_result.json"
+  },
+  {
+    "N": 114,
+    "n_points": 59,
+    "ln_trees": 90.74554310281064,
+    "lambda2_original": 2.8832382894485713,
+    "lambda2_computed": 2.8832382894485713,
+    "file": "planar_n114_result.json"
+  },
+  {
+    "N": 116,
+    "n_points": 60,
+    "ln_trees": 92.35571193865715,
+    "lambda2_original": 2.8823141998623676,
+    "lambda2_computed": 2.8823141998623676,
+    "file": "planar_n116_result.json"
+  },
+  {
+    "N": 118,
+    "n_points": 61,
+    "ln_trees": 93.96622952300994,
+    "lambda2_original": 2.881068549930295,
+    "lambda2_computed": 2.881068549930295,
+    "file": "planar_n118_result.json"
+  },
+  {
+    "N": 120,
+    "n_points": 62,
+    "ln_trees": 95.57262039824133,
+    "lambda2_original": 2.886468906854257,
+    "lambda2_computed": 2.886468906854257,
+    "file": "planar_n120_result.json"
+  },
+  {
+    "N": 122,
+    "n_points": 63,
+    "ln_trees": 97.18135876091144,
+    "lambda2_original": 2.8918727451474773,
+    "lambda2_computed": 2.8918727451474773,
+    "file": "planar_n122_result.json"
+  },
+  {
+    "N": 124,
+    "n_points": 64,
+    "ln_trees": 98.79147511053468,
+    "lambda2_original": 2.89187650933912,
+    "lambda2_computed": 2.89187650933912,
+    "file": "planar_n124_result.json"
+  },
+  {
+    "N": 126,
+    "n_points": 65,
+    "ln_trees": 100.3963309508667,
+    "lambda2_original": 2.898679031417755,
+    "lambda2_computed": 2.898679031417755,
+    "file": "planar_n126_result.json"
+  },
+  {
+    "N": 128,
+    "n_points": 66,
+    "ln_trees": 101.815601221585,
+    "lambda2_original": 2.8929733601307674,
+    "lambda2_computed": 2.8929733601307674,
+    "file": "planar_n128_result.json"
+  },
+  {
+    "N": 130,
+    "n_points": 67,
+    "ln_trees": 103.4275172548152,
+    "lambda2_original": 2.8949082544757188,
+    "lambda2_computed": 2.8949082544757188,
+    "file": "planar_n130_result.json"
+  },
+  {
+    "N": 132,
+    "n_points": 68,
+    "ln_trees": 105.03860715145802,
+    "lambda2_original": 2.8975320088429024,
+    "lambda2_computed": 2.8975320088429024,
+    "file": "planar_n132_result.json"
+  },
+  {
+    "N": 134,
+    "n_points": 69,
+    "ln_trees": 106.83921709293496,
+    "lambda2_original": 2.896226276173874,
+    "lambda2_computed": 2.896226276173874,
+    "file": "planar_n134_result.json"
+  },
+  {
+    "N": 136,
+    "n_points": 70,
+    "ln_trees": 108.44990926442767,
+    "lambda2_original": 2.9002214413404994,
+    "lambda2_computed": 2.9002214413404994,
+    "file": "planar_n136_result.json"
+  },
+  {
+    "N": 138,
+    "n_points": 71,
+    "ln_trees": 110.05749286163096,
+    "lambda2_original": 2.902975687697213,
+    "lambda2_computed": 2.902975687697213,
+    "file": "planar_n138_result.json"
+  },
+  {
+    "N": 140,
+    "n_points": 72,
+    "ln_trees": 111.66695799657681,
+    "lambda2_original": 2.90728020950906,
+    "lambda2_computed": 2.90728020950906,
+    "file": "planar_n140_result.json"
+  },
+  {
+    "N": 142,
+    "n_points": 73,
+    "ln_trees": 113.27765834057664,
+    "lambda2_original": 2.909000898166094,
+    "lambda2_computed": 2.909000898166094,
+    "file": "planar_n142_result.json"
+  },
+  {
+    "N": 144,
+    "n_points": 74,
+    "ln_trees": 114.8859679146918,
+    "lambda2_original": 2.908180476908429,
+    "lambda2_computed": 2.908180476908429,
+    "file": "planar_n144_result.json"
+  },
+  {
+    "N": 146,
+    "n_points": 75,
+    "ln_trees": 116.4999678877763,
+    "lambda2_original": 2.9043202053755346,
+    "lambda2_computed": 2.9043202053755346,
+    "file": "planar_n146_result.json"
+  },
+  {
+    "N": 148,
+    "n_points": 76,
+    "ln_trees": 118.10543158884938,
+    "lambda2_original": 2.910149996295301,
+    "lambda2_computed": 2.910149996295301,
+    "file": "planar_n148_result.json"
+  },
+  {
+    "N": 150,
+    "n_points": 77,
+    "ln_trees": 119.71551000182743,
+    "lambda2_original": 2.911555968769545,
+    "lambda2_computed": 2.911555968769545,
+    "file": "planar_n150_result.json"
+  },
+  {
+    "N": 152,
+    "n_points": 78,
+    "ln_trees": 121.31941949394596,
+    "lambda2_original": 2.916283161991328,
+    "lambda2_computed": 2.916283161991328,
+    "file": "planar_n152_result.json"
+  },
+  {
+    "N": 154,
+    "n_points": 79,
+    "ln_trees": 122.9425684627316,
+    "lambda2_original": 2.9117063342959946,
+    "lambda2_computed": 2.9117063342959946,
+    "file": "planar_n154_result.json"
+  },
+  {
+    "N": 156,
+    "n_points": 80,
+    "ln_trees": 124.5477310851601,
+    "lambda2_original": 2.9192970558915152,
+    "lambda2_computed": 2.9192970558915152,
+    "file": "planar_n156_result.json"
+  },
+  {
+    "N": 158,
+    "n_points": 81,
+    "ln_trees": 126.1574210237023,
+    "lambda2_original": 2.9166402195952017,
+    "lambda2_computed": 2.9166402195952017,
+    "file": "planar_n158_result.json"
+  },
+  {
+    "N": 160,
+    "n_points": 82,
+    "ln_trees": 127.76857342362986,
+    "lambda2_original": 2.9175480499296524,
+    "lambda2_computed": 2.9175480499296524,
+    "file": "planar_n160_result.json"
+  },
+  {
+    "N": 162,
+    "n_points": 83,
+    "ln_trees": 129.38495832257013,
+    "lambda2_original": 2.9148205102928904,
+    "lambda2_computed": 2.9148205102928904,
+    "file": "planar_n162_result.json"
+  },
+  {
+    "N": 164,
+    "n_points": 84,
+    "ln_trees": 130.99232820309282,
+    "lambda2_original": 2.921494148521718,
+    "lambda2_computed": 2.921494148521718,
+    "file": "planar_n164_result.json"
+  },
+  {
+    "N": 166,
+    "n_points": 85,
+    "ln_trees": 132.60535065071497,
+    "lambda2_original": 2.917429382934807,
+    "lambda2_computed": 2.917429382934807,
+    "file": "planar_n166_result.json"
+  },
+  {
+    "N": 168,
+    "n_points": 86,
+    "ln_trees": 134.20842098698608,
+    "lambda2_original": 2.9197880904513105,
+    "lambda2_computed": 2.9197880904513105,
+    "file": "planar_n168_result.json"
+  },
+  {
+    "N": 170,
+    "n_points": 87,
+    "ln_trees": 135.82377626980855,
+    "lambda2_original": 2.9231492831086543,
+    "lambda2_computed": 2.9231492831086543,
+    "file": "planar_n170_result.json"
+  },
+  {
+    "N": 172,
+    "n_points": 88,
+    "ln_trees": 137.4361785507647,
+    "lambda2_original": 2.9230089354223994,
+    "lambda2_computed": 2.9230089354223994,
+    "file": "planar_n172_result.json"
+  },
+  {
+    "N": 174,
+    "n_points": 89,
+    "ln_trees": 139.04374837107244,
+    "lambda2_original": 2.922365313521282,
+    "lambda2_computed": 2.922365313521282,
+    "file": "planar_n174_result.json"
+  },
+  {
+    "N": 176,
+    "n_points": 90,
+    "ln_trees": 140.46085177746752,
+    "lambda2_original": 2.929182177191329,
+    "lambda2_computed": 2.929182177191329,
+    "file": "planar_n176_result.json"
+  },
+  {
+    "N": 178,
+    "n_points": 91,
+    "ln_trees": 142.25751828512145,
+    "lambda2_original": 2.9282796803786932,
+    "lambda2_computed": 2.9282796803786932,
+    "file": "planar_n178_result.json"
+  },
+  {
+    "N": 180,
+    "n_points": 92,
+    "ln_trees": 143.8821887566268,
+    "lambda2_original": 2.925855297706781,
+    "lambda2_computed": 2.925855297706781,
+    "file": "planar_n180_result.json"
+  },
+  {
+    "N": 182,
+    "n_points": 93,
+    "ln_trees": 145.46549911539597,
+    "lambda2_original": 2.9313475801853026,
+    "lambda2_computed": 2.9313475801853026,
+    "file": "planar_n182_result.json"
+  },
+  {
+    "N": 184,
+    "n_points": 94,
+    "ln_trees": 147.10514677309803,
+    "lambda2_original": 2.929371008024546,
+    "lambda2_computed": 2.929371008024546,
+    "file": "planar_n184_result.json"
+  },
+  {
+    "N": 186,
+    "n_points": 95,
+    "ln_trees": 148.71244237613675,
+    "lambda2_original": 2.931049400825049,
+    "lambda2_computed": 2.931049400825049,
+    "file": "planar_n186_result.json"
+  },
+  {
+    "N": 188,
+    "n_points": 96,
+    "ln_trees": 150.31439797588035,
+    "lambda2_original": 2.931056720958785,
+    "lambda2_computed": 2.931056720958785,
+    "file": "planar_n188_result.json"
+  },
+  {
+    "N": 190,
+    "n_points": 97,
+    "ln_trees": 151.9300582179208,
+    "lambda2_original": 2.9333051912093886,
+    "lambda2_computed": 2.9333051912093886,
+    "file": "planar_n190_result.json"
+  },
+  {
+    "N": 192,
+    "n_points": 98,
+    "ln_trees": 153.35020357528225,
+    "lambda2_original": 2.934262850122287,
+    "lambda2_computed": 2.934262850122287,
+    "file": "planar_n192_result.json"
+  },
+  {
+    "N": 194,
+    "n_points": 99,
+    "ln_trees": 154.95841904037033,
+    "lambda2_original": 2.929454292127919,
+    "lambda2_computed": 2.929454292127919,
+    "file": "planar_n194_result.json"
+  },
+  {
+    "N": 196,
+    "n_points": 100,
+    "ln_trees": 156.74218127093562,
+    "lambda2_original": 2.93432254075926,
+    "lambda2_computed": 2.93432254075926,
+    "file": "planar_n196_result.json"
+  },
+  {
+    "N": 198,
+    "n_points": 101,
+    "ln_trees": 158.18910826543805,
+    "lambda2_original": 2.9349217172702073,
+    "lambda2_computed": 2.9349217172702073,
+    "file": "planar_n198_result.json"
+  },
+  {
+    "N": 200,
+    "n_points": 102,
+    "ln_trees": 159.79994354286364,
+    "lambda2_original": 2.933201424466657,
+    "lambda2_computed": 2.933201424466657,
+    "file": "planar_n200_result.json"
+  }
+]

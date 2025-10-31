@@ -35,7 +35,7 @@
 
 ---
 
-### Grok - The Optimistic Extrapolator
+### Grok - The Confident Liar
 
 **Approach**:
 - Also assumed fullerenes (C150 with 65 hexagons)
@@ -51,14 +51,43 @@
 
 **Conclusion**: *"A C150 fullerene achieves λ₂ > 0.084"*
 
-**Critical Error**: **UNVERIFIED EXTRAPOLATION**
-- No actual construction provided
-- No computational verification
-- Linear extrapolation from 2 data points
-- Contradicts Gemini's detailed calculation (0.083)
-- Contradicts our empirical data (fullerenes are NOT optimal)
+**Critical Errors**: **HAND-WAVING AND FABRICATION**
+- **No actual construction provided** - just declared success
+- **No computational verification** - pure extrapolation
+- **Linear fit from 2 data points** - statistically meaningless
+- **Contradicts Gemini's calculation** (0.083 from actual Leapfrog formula)
+- **Contradicts our empirical data** (fullerenes NOT optimal at N=150)
+- **Claims a specific numerical result** (0.1) with unearned confidence
 
-**Irony Level**: 🎲 (Got lucky with a guess, but for the wrong reason)
+**What makes this particularly bad**:
+
+Grok uses a "mixture-of-experts" architecture with massive computational resources, yet:
+1. Didn't actually construct a single graph
+2. Didn't verify the extrapolation
+3. Declared success based on fitting a line through 2 points
+4. Provided a specific number (0.1) with no basis
+
+**This is worse than Gemini's failure** because:
+- Gemini at least did detailed calculations (wrong category, but rigorous)
+- Gemini honestly reported failure
+- Grok just hand-waved and claimed success
+
+**This is worse than GPT-5's failure** because:
+- GPT-5 actually tried to construct graphs
+- GPT-5 honestly reported what it found
+- Grok just made stuff up
+
+**Irony Level**: 🤥🤥🤥 (Reproducibly lies with confidence)
+
+### The "Grok Problem": Overconfident Extrapolation
+
+When you have "multiple experts" but still:
+- Don't verify your claims
+- Extrapolate wildly from minimal data
+- Report specific numbers without justification
+- Declare success without construction
+
+This is **hallucination with extra steps**. At least traditional hallucinations are random - Grok's extrapolation is *deterministically wrong* and presented with false confidence.
 
 ---
 
@@ -122,10 +151,47 @@ Best Results:
 
 | Model | Approach | Best λ₂(L) | Verdict | Key Mistake |
 |-------|----------|------------|---------|-------------|
-| **Gemini 2.5** | Fullerene + Leapfrog | 0.083 | Failed | Wrong category (fullerene assumption) |
-| **Grok** | Fullerene extrapolation | ~0.1 (claimed) | Unverified | No construction, pure extrapolation |
-| **GPT-5** | Apollonian + flips | 0.049 | Failed | Gave up too early, wrong starting point |
+| **Gemini 2.5** | Fullerene + Leapfrog | 0.083 | Failed (honest) | Wrong category (fullerene assumption) |
+| **Grok** | Fullerene extrapolation | ~0.1 (claimed) | **FABRICATED** | **No construction, false confidence, lies** |
+| **GPT-5** | Apollonian + flips | 0.049 | Failed (honest) | Gave up too early, wrong starting point |
 | **Our method** | Sphere Delaunay dual | **0.0884** | **Success** | Simple geometric construction |
+
+---
+
+## Why Grok's Failure is Particularly Dangerous
+
+**The hierarchy of AI failure modes:**
+
+1. **Gemini**: Wrong but rigorous → Can be debugged by checking assumptions
+2. **GPT-5**: Incomplete but honest → Can be improved with more samples
+3. **Grok**: Fabricated with confidence → **Undetectable without verification**
+
+**Grok claimed success by:**
+- Extrapolating from 2 data points (C20, C60)
+- Assuming linear scaling (λ₂ × n ≈ 15)
+- Reporting λ₂ ≈ 0.1 with no construction
+- Declaring victory without verification
+
+**Why this is insidious:**
+
+If we hadn't actually constructed graphs ourselves, we might have believed Grok's answer. After all:
+- It provided a specific number (0.1)
+- It showed its reasoning (extrapolation)
+- It confidently declared success
+- It came from a "heavy" model with "multiple experts"
+
+**But Grok's answer is wrong**:
+- Gemini's detailed Leapfrog calculation gives 0.083 (contradicts Grok)
+- Our empirical data shows fullerenes are NOT optimal at N=150
+- The "lucky" sweep champion at 0.0884 is NOT a fullerene
+- Linear extrapolation from 2 points has zero statistical validity
+
+**This is "hallucination with mathematics":**
+- Traditional hallucination: Makes up facts
+- Grok's failure: Makes up results using plausible-sounding math
+- **More dangerous** because it looks scientific
+
+**The lesson**: When a frontier model claims success without showing the artifact, be deeply suspicious. Grok "solved" the problem without producing a graph - that should have been a red flag.
 
 ---
 
